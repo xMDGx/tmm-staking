@@ -24,12 +24,14 @@ pub mod tmm_staking {
     pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
         let stake_info = &mut ctx.accounts.stake_info_account;
 
+        // Check if staking exists already.
         if stake_info.total_stake > 0.0 {
             return Err(ErrorCode::IsStaked.into());
         }
 
+        // Check if don't have any tokens to stake.
         if amount <= 0 {
-            return Err(ErrorCode::NotEnough.into());
+            return Err(ErrorCode::NoTokens.into());
         }
 
         let clock = Clock::get()?;
@@ -43,7 +45,6 @@ pub mod tmm_staking {
         let total_stake = (amount)
             .checked_mul(10u64.pow(ctx.accounts.mint.decimals as u32))
             .unwrap();
-        // let total_stake = amount as f64 / 10f64.powi(6);
 
         transfer(
             CpiContext::new(
@@ -51,7 +52,7 @@ pub mod tmm_staking {
                 Transfer {
                     from: ctx.accounts.user_token_account.to_account_info(),
                     to: ctx.accounts.stake_account.to_account_info(),
-                    authority: ctx.accounts.signer.to_account_info(),
+                    authority: ctx.accounts.signer.to_account_info()
                 },
             ),
             total_stake,
@@ -76,30 +77,33 @@ pub struct Stake<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
+    // Stake Account.
     #[account(
         init_if_needed,
         seeds = [constants::TOKEN_SEED, signer.key().as_ref()],
         bump,
         payer = signer,
         token::mint = mint,
-        token::authority = stake_account,
+        token::authority = stake_account
     )]
     pub stake_account: Account<'info, TokenAccount>,
 
+    // Stake Info Account.
     #[account(
         init_if_needed,
         seeds = [constants::STAKE_INFO_SEED, signer.key().as_ref()],
         bump,
         payer = signer,
         // space = 8 + 8 + 8 + 8 + 2 + 2,
-        space = 8 + std::mem::size_of::<StakeInfo>(),
+        space = 8 + std::mem::size_of::<StakeInfo>()
     )]
     pub stake_info_account: Account<'info, StakeInfo>,
     
+    // User Token Account (Outside of Program).
     #[account(
         mut,
         associated_token::mint = mint,
-        associated_token::authority = signer,
+        associated_token::authority = signer
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 
@@ -127,6 +131,6 @@ pub enum ErrorCode {
     NotStaked,
     #[msg("Staking has not unlocked yet.")]
     StakeLocked,
-    #[msg("Not enough to stake.")]
-    NotEnough,
+    #[msg("No tokens to stake.")]
+    NoTokens,
 }
