@@ -1,10 +1,11 @@
+use crate::state::*;
+
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    token::{self, Transfer, transfer},
+    token::{Transfer, transfer},
 };
 
-use crate::state::Stake;
-use crate::ErrorCode;
+use crate::errors::CustomError;
 
 pub fn deposit_funds(ctx: Context<Stake>, habit_id: String, amount: f64) -> Result<()> {
     // let deposit_amount = ctx.accounts.user_token_account.amount;
@@ -15,12 +16,12 @@ pub fn deposit_funds(ctx: Context<Stake>, habit_id: String, amount: f64) -> Resu
 
     // Check if don't have any tokens to stake.
     if amount <= 0.0 {
-        return Err(ErrorCode::AmountMustBeGreaterThanZero.into());
+        return Err(CustomError::AmountMustBeGreaterThanZero.into());
     }
 
     // Check if staking exists already.
     if stake_info.total_stake > 0.0 {
-        return Err(ErrorCode::IsStakedAlready.into());
+        return Err(CustomError::IsStakedAlready.into());
     }
 
     let clock = Clock::get()?;
