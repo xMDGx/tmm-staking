@@ -5,7 +5,6 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, createAssociatedTokenAccount, createMint, getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
 import { BN } from "bn.js";
 
-
 describe("TMM-Staking", () => {
   console.log("Starting Test...");
 
@@ -65,17 +64,17 @@ describe("TMM-Staking", () => {
     //   payer.publicKey,
     // );
 
-    // const txn = await program.methods
-    //   .deposit(new anchor.BN(1))
-    //   .signers([payer.payer])
-    //   .accounts({
-    //     signer: payer.publicKey,
-    //     stakeAccount: stakeAccount,
-    //     stakeInfoAccount: stakeInfo,
-    //     userTokenAccount: userTokenAccount.address,
-    //     mint: mintKeyPair.publicKey,
-    //   })
-    //   .rpc();
+    const txn = await program.methods
+      .deposit("1", 1)
+      .signers([payer.payer])
+      .accounts({
+        //     signer: payer.publicKey,
+        //     stakeAccount: stakeAccount,
+        //     stakeInfoAccount: stakeInfo,
+        //     userTokenAccount: userTokenAccount.address,
+        //     mint: mintKeyPair.publicKey,
+      })
+      .rpc();
 
     // console.log("TxnHash: ", txn);
 
