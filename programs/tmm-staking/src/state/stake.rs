@@ -1,11 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, Mint, Token, TokenAccount},
+    token::{Mint, Token, TokenAccount},
 };
 
-pub const STAKE_SEED: &str = "stake_seed";
-pub const STAKE_INFO_SEED: &str = "stake_info_seed";
+pub const STAKE_SEED: &[u8] = b"stake_seed";
+pub const STAKE_INFO_SEED: &[u8] = b"stake_info_seed";
+
 
 #[derive(Accounts)]
 #[instruction(habit_id: String)]
@@ -17,7 +18,7 @@ pub struct Stake<'info> {
     #[account(
         init_if_needed,
         seeds = [
-            STAKE_SEED.as_bytes(),
+            STAKE_SEED,
             habit_id.as_bytes(),
             signer.key().as_ref()
             ],
@@ -33,7 +34,7 @@ pub struct Stake<'info> {
     #[account(
         init_if_needed,
         seeds = [
-            STAKE_INFO_SEED.as_bytes(),
+            STAKE_INFO_SEED,
             habit_id.as_bytes(),
             signer.key().as_ref()
             ],

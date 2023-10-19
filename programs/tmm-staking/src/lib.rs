@@ -1,10 +1,12 @@
-use anchor_lang::prelude::*;
-
+// Make the necessary modules public/useable.
 pub mod instructions;
 pub mod state;
+pub mod errors;
 
 use instructions::*;
 use state::*;
+use anchor_lang::prelude::*;
+
 
 declare_id!("2oXApx9k2sPsCdDbQRhbxwzQxm4nrVz3SXK1CorL1FhL");
 
@@ -18,7 +20,7 @@ pub mod tmm_staking {
     }
 
     pub fn withdraw(ctx: Context<Stake>, habit_id: String) -> Result<()> {
-        // withdraw_funds(ctx, habit_id);
+        instructions::withdraw_funds(ctx, habit_id);
         Ok(())
     }
 }

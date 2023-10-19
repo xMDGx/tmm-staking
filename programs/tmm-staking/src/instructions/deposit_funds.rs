@@ -1,11 +1,11 @@
 use crate::state::*;
+use crate::errors::CustomError;
 
 use anchor_lang::prelude::*;
 use anchor_spl::{
     token::{Transfer, transfer},
 };
 
-use crate::errors::CustomError;
 
 pub fn deposit_funds(ctx: Context<Stake>, habit_id: String, amount: f64) -> Result<()> {
     // let deposit_amount = ctx.accounts.user_token_account.amount;

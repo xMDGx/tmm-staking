@@ -1,6 +1,6 @@
+use crate::state::Stake;
 use anchor_lang::prelude::*;
 
-use crate::state::Stake;
 
 pub fn withdraw_funds(ctx: Context<Stake>, habit_id: String) -> Result<()> {
     let stake = &mut ctx.accounts.stake_account;
