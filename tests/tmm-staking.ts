@@ -15,73 +15,75 @@ describe("TMM-Staking", () => {
   const connection = new Connection("http://localhost:8899", "confirmed");
 
   const userKeyPair = Keypair.generate();
+  const usdcKeyPair = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
   const program = anchor.workspace.TmmStaking as Program<TmmStaking>;
 
   it("Deposit", async () => {
-    //   // Get the user token account.
     //   console.log(connection);
     //   console.log(payer.payer);
-    //   console.log("MintKeyPair: ", mintKeyPair.publicKey);
+    //   console.log("MintKeyPair: ", usdcKeyPair);
     //   console.log("Payer: ", payer.publicKey);
 
-    //   let userTokenAccount = await getOrCreateAssociatedTokenAccount(
-    //     connection,
-    //     payer.payer,
-    //     mintKeyPair.publicKey,
-    //     payer.publicKey
-    //   );
+    // Get the user token account.
+    let userTokenAccount = await getOrCreateAssociatedTokenAccount(
+      connection,
+      payer.payer,
+      usdcKeyPair,
+      payer.publicKey
+    );
 
     // Mint tokens into the account so we can test staking.
-    // await mintTo(
-    //   connection,
-    //   payer.payer,
-    //   mintKeyPair.publicKey,
-    //   userTokenAccount.address,
-    //   payer.payer,
-    //   1000
-    // );
+    await mintTo(
+      connection,
+      payer.payer,
+      usdcKeyPair,
+      userTokenAccount.address,
+      payer.payer,
+      1000
+    );
 
-    // console.log("UserTokenAccount: ", userTokenAccount);
+    console.log("UserTokenAccount: ", userTokenAccount);
 
-    // let [stakeAccount] = PublicKey.findProgramAddressSync(
-    //   [Buffer.from("token"), payer.publicKey.toBuffer()],
-    //   program.programId
-    // );
+    let [stakeAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("token"), payer.publicKey.toBuffer()],
+      program.programId
+    );
 
-    // console.log("StakeAccount: ", stakeAccount);
+    console.log("StakeAccount: ", stakeAccount);
 
-    // let [stakeInfo] = PublicKey.findProgramAddressSync(
-    //   [Buffer.from("stake_info"), payer.publicKey.toBuffer()],
-    //   program.programId
-    // );
+    let [stakeInfo] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stake_info"), payer.publicKey.toBuffer()],
+      program.programId
+    );
 
-    // console.log("StakeInfo: ", stakeInfo);
+    console.log("StakeInfo: ", stakeInfo);
 
-    // await getOrCreateAssociatedTokenAccount(
-    //   connection,
-    //   payer.payer,
-    //   mintKeyPair.publicKey,
-    //   payer.publicKey,
-    // );
+    await getOrCreateAssociatedTokenAccount(
+      connection,
+      payer.payer,
+      usdcKeyPair,
+      payer.publicKey,
+    );
 
     const txn = await program.methods
-      .deposit("1", 1)
+      .deposit("1", new anchor.BN(10))
       .signers([payer.payer])
       .accounts({
-        //     signer: payer.publicKey,
-        //     stakeAccount: stakeAccount,
-        //     stakeInfoAccount: stakeInfo,
-        //     userTokenAccount: userTokenAccount.address,
-        //     mint: mintKeyPair.publicKey,
+        signer: payer.publicKey,
+        stakeAccount: stakeAccount,
+        stakeInfoAccount: stakeInfo,
+        userTokenAccount: userTokenAccount.address,
+        mint: usdcKeyPair,
       })
       .rpc();
 
-    // console.log("TxnHash: ", txn);
+    console.log("TxnHash: ", txn);
 
     // Fetch data from the account.
     // let accountData = await program.account.stakeInfo.fetch(stakeAccount.publicKey);
     // console.log('Total Deposited: ', accountData.totalStake.toString());
   });
+
 
   it("TransferSPLTokens", async () => {
     // // Generate keypairs for the new accounts.

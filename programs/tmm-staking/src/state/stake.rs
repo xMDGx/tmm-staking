@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
+    associated_token,
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount},
 };
@@ -40,23 +41,22 @@ pub struct Stake<'info> {
             ],
         bump,
         payer = signer,
-        // space = 8 + 8 + 8 + 8 + 2 + 2,
         space = 8 + std::mem::size_of::<StakeInfo>()
     )]
     pub stake_info_account: Account<'info, StakeInfo>,
 
-    // User Token Account (Outside of Program).
-    // #[account(
-    //     mut,
-    //     associated_token::mint = mint,
-    //     associated_token::authority = signer
-    // )]
-    // pub user_token_account: Account<'info, TokenAccount>,
+    // User Token Wallet (Outside of Program).
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = signer
+    )]
+    pub user_token_account: Account<'info, TokenAccount>,
 
     // Need because of the associated token account.
     pub mint: Account<'info, Mint>,
     pub token_program: Program<'info, Token>,
-    // pub associated_token_program: Program<'info, AssociatedToken>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
