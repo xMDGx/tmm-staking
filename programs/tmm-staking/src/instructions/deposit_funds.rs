@@ -20,8 +20,17 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: String, amount: u64) 
         return Err(CustomError::IsStakedAlready.into());
     }
 
+    // Check if user has enough tokens to stake.
+    if ctx.accounts.user_token_account.amount < amount {
+        return Err(CustomError::NotEnoughToStake.into());
+    }
+
     let clock = Clock::get()?;
     stake.stake_at_slot = clock.slot;
+    stake.deposit_timestamp = clock.unix_timestamp;
+
+    stake.authority = ctx.accounts.staker.key();
+    stake.mint = ctx.accounts.token_mint.key();
 
     stake.habit_id = habit_id;
     stake.total_stake = amount;
@@ -57,6 +66,7 @@ pub struct DepositStake<'info> {
 
     pub token_mint: Account<'info, Mint>,
 
+    // Stake account.
     #[account(
         init,
         payer = staker,
@@ -69,13 +79,7 @@ pub struct DepositStake<'info> {
     )]
     pub stake: Account<'info, Stake>,
 
-    #[account(
-        mut,
-        associated_token::mint = token_mint,
-        associated_token::authority = staker
-    )]
-    pub user_token_account: Account<'info, TokenAccount>,
-
+    // Stake token account PDA.
     #[account(
         init,
         payer = staker,
@@ -88,6 +92,15 @@ pub struct DepositStake<'info> {
     )]
     pub stake_token_account: Account<'info, TokenAccount>,
 
+    // User's token account.
+    #[account(
+        mut,
+        associated_token::mint = token_mint,
+        associated_token::authority = staker
+    )]
+    pub user_token_account: Account<'info, TokenAccount>,
+
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
 }

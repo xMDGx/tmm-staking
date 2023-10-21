@@ -5,8 +5,8 @@ pub enum CustomError {
     #[msg("Amount must be greater than 0.")]
     AmountMustBeGreaterThanZero,
     
-    #[msg("No tokens to stake.")]
-    NoTokens,
+    #[msg("Not enough to stake.")]
+    NotEnoughToStake,
 
     #[msg("Staking exists already.")]
     IsStakedAlready,

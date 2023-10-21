@@ -56,7 +56,7 @@ describe("TMM-Staking", () => {
 
 
   it("Deposit Success", async () => {
-    console.log("   ...starting deposit test");
+
     // const habitId = Uint8Array.from(("habit_id_hash").split("").map((x) => x.charCodeAt(0)));
     // const habitId = Buffer.from("habit_id_hash");
     const habitId = new TextEncoder().encode("habit_id_hash");
@@ -79,40 +79,75 @@ describe("TMM-Staking", () => {
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
     const stakeAmount = new BN(1);
 
-    const txn = await program.methods
+    await program.methods
       .deposit("habit_id_hash", stakeAmount)
       .signers([user])
       .accounts({
         staker: user.publicKey,
         tokenMint: tokenMint,
         stake: stakeKey,
-        userTokenAccount: userTokenAccount,
         stakeTokenAccount: stakeTokenKey,
+        userTokenAccount: userTokenAccount,
         systemProgram: anchor.web3.SystemProgram.programId,
         tokenProgram: splToken.TOKEN_PROGRAM_ID,
       })
       .rpc({ commitment: "confirmed" });
 
-    console.log("Txn Sig: ", txn);
-
     // const stakeData = await program.account.stake.fetch(stakeKey);
-    // const stakeTokenData = await splToken.getAccount(provider.connection, stakeTokenKey, "confirmed");
-    // const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
+    const stakeTokenData = await splToken.getAccount(provider.connection, stakeTokenKey, "confirmed");
+    const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
     // console.log("Stake Account Data:");
     // console.log(stakeData);
 
-    // console.log("Stake Token Account Data:");
-    // console.log(stakeTokenData);
-
-    // console.log("User Token Account Data:");
-    // console.log(" - before: ", userBefore);
-    // console.log(" - after: ", userAfter);
-
+    assert.strictEqual(userAfter.amount.toString(), new BN(userBefore.amount.toString()).sub(stakeAmount).toString());
     // assert.strictEqual(stakeData.totalStake.toString(), stakeAmount.toString());
-    // assert.strictEqual(stakeTokenData.amount.toString(), stakeAmount.toString());
+    assert.strictEqual(stakeTokenData.amount.toString(), stakeAmount.toString());
+  });
+
+
+  it("Withdraw Success", async () => {
+
+    const habitId = new TextEncoder().encode("habit_id_hash");
+
+    const [stakeKey, stakeBump] = PublicKey.findProgramAddressSync(
+      [
+        habitId,
+        user.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
+
+    const [stakeTokenKey, stakeTokenBump] = PublicKey.findProgramAddressSync(
+      [
+        stakeKey.toBuffer(),
+      ],
+      program.programId
+    );
+
+    const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
+    const userBalanceBefore = await provider.connection.getBalance(user.publicKey);
+
+    const withdrawAmount = new BN(1);
+
+    await program.methods
+      .withdraw("habit_id_hash")
+      .signers([user])
+      .accounts({
+        staker: user.publicKey,
+        stake: stakeKey,
+        stakeTokenAccount: stakeTokenKey,
+        userTokenAccount: userTokenAccount,
+        tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      })
+      .rpc({ commitment: "confirmed" });
+
+    const userBalanceAfter = await provider.connection.getBalance(user.publicKey);
+
+    assert.strictEqual(userBalanceAfter.toString(), new BN(userBalanceBefore.toString()).add(withdrawAmount).toString());
   });
 });
+
 
 async function airdrop(connection: Connection, address: PublicKey) {
   try {
