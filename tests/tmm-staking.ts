@@ -20,7 +20,8 @@ describe("TMM-Staking", () => {
 
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
-  const habitId = "habitIDxyz";
+  // const habitId = "Nw:1qvFj2:_07qlJdhrr6_7IFJN-5Ym1LOYhveXwSfxJ25XKgQVHw";
+  const habitId = "1234";
 
   let userTokenAccount;
   let tokenMint;
@@ -78,7 +79,7 @@ describe("TMM-Staking", () => {
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
     await program.methods
-      .deposit(habitId.toString(), stakeAmount)
+      .deposit(habitId, stakeAmount)
       .signers([user])
       .accounts({
         signer: user.publicKey,
@@ -123,6 +124,7 @@ describe("TMM-Staking", () => {
       .signers([user])
       .accounts({
         signer: user.publicKey,
+        tokenMint: tokenMint,
         stake: stakeKey,
         stakeTokenAccount: stakeTokenKey,
         userTokenAccount: userTokenAccount,

@@ -11,25 +11,27 @@ use anchor_spl::{
 pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: String, amount: u64) -> Result<()> {
     let stake = &mut ctx.accounts.stake;
 
-    // Check if staking exists already.
-    if stake.total_stake > 0 {
-        return Err(CustomError::IsStakedAlready.into());
-    }
+    // Check if staking does NOT exist already.
+    require!(
+        stake.total_stake == 0,
+        CustomError::IsStakedAlready
+    );
 
     // Check if token is USDC.
     // if ctx.accounts.token_mint.mint_authority != "" {
     //     return Err(CustomError::NotUSDC.into());
     // }
 
-    // Check if don't have USDC to stake.
-    if amount <= 0 {
-        return Err(CustomError::AmountMustBeGreaterThanZero.into());
-    }
+    // Check if do NOT have any USDC to stake.
+    require!(
+        amount > 0,
+        CustomError::AmountMustBeGreaterThanZero
+    );
 
     // Check if user has enough USDC to stake.
-    if ctx.accounts.user_token_account.amount < amount {
-        return Err(CustomError::NotEnoughToStake.into());
-    }
+    // if ctx.accounts.user_token_account.amount < amount {
+    //     return Err(CustomError::NotEnoughToStake.into());
+    // }
 
     stake.owner = ctx.accounts.signer.key();
 

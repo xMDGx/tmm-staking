@@ -108,7 +108,6 @@ pub struct WithdrawStake<'info> {
     // User's token account (wallet).
     #[account(
         mut,
-        // associated_token::mint = stake.mint,
         associated_token::mint = token_mint,
         associated_token::authority = signer
     )]
