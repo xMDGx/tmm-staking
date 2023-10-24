@@ -8,8 +8,8 @@ pub struct Stake {
     // UNIX timestamp of the deposit (8).
     pub deposit_timestamp: i64,
 
-    // The ID of the habit being staked against (24).
-    pub habit_id: String,
+    // The ID of the habit being staked against (8).
+    pub habit_id: u64,
 
     // Total stake amount (8).
     pub total_stake: u64,
@@ -22,5 +22,5 @@ pub struct Stake {
 }
 
 impl Stake {
-    pub const LEN: usize = 8 + 32 + 8 + 24 + 8 + 1 + 1;
+    pub const LEN: usize = 8 + 32 + 8 + 8 + 8 + 1 + 1;
 }

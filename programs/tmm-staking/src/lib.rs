@@ -14,7 +14,7 @@ declare_id!("2oXApx9k2sPsCdDbQRhbxwzQxm4nrVz3SXK1CorL1FhL");
 pub mod tmm_staking {
     use super::*;
 
-    pub fn deposit(ctx: Context<DepositStake>, habit_id: String, amount: u64) -> Result<()> {
+    pub fn deposit(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
         instructions::deposit_funds(ctx, habit_id, amount).ok();
         Ok(())
     }

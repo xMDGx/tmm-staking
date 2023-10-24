@@ -3,7 +3,6 @@ import { Program } from "@coral-xyz/anchor";
 import { TmmStaking } from "../target/types/tmm_staking";
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import * as splToken from "@solana/spl-token";
-import { BN } from "bn.js";
 import { assert } from "chai";
 
 describe("TMM-Staking", () => {
@@ -20,8 +19,7 @@ describe("TMM-Staking", () => {
 
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
-  // const habitId = "Nw:1qvFj2:_07qlJdhrr6_7IFJN-5Ym1LOYhveXwSfxJ25XKgQVHw";
-  const habitId = "1234";
+  const habitId = new anchor.BN(1234567890);
 
   let userTokenAccount;
   let tokenMint;
@@ -65,7 +63,7 @@ describe("TMM-Staking", () => {
   it("Deposit Success", async () => {
 
     const [stakeKey, stakeBump] = PublicKey.findProgramAddressSync(
-      [stakeSeed, Buffer.from(habitId), user.publicKey.toBuffer()],
+      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
       program.programId
     );
 
@@ -74,7 +72,7 @@ describe("TMM-Staking", () => {
       program.programId
     );
 
-    const stakeAmount = new BN(1);
+    const stakeAmount = new anchor.BN(1);
 
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
@@ -96,7 +94,7 @@ describe("TMM-Staking", () => {
     const stakeTokenData = await splToken.getAccount(provider.connection, stakeTokenKey, "confirmed");
     const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
-    assert.strictEqual(userAfter.amount.toString(), new BN(userBefore.amount.toString()).sub(stakeAmount).toString());
+    assert.strictEqual(userAfter.amount.toString(), new anchor.BN(userBefore.amount.toString()).sub(stakeAmount).toString());
     assert.strictEqual(stakeData.totalStake.toString(), stakeAmount.toString());
     assert.strictEqual(stakeTokenData.amount.toString(), stakeAmount.toString());
   });
@@ -105,7 +103,7 @@ describe("TMM-Staking", () => {
   it("Withdraw Success", async () => {
 
     const [stakeKey, stakeBump] = PublicKey.findProgramAddressSync(
-      [stakeSeed, Buffer.from(habitId), user.publicKey.toBuffer()],
+      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
       program.programId
     );
 
@@ -114,7 +112,7 @@ describe("TMM-Staking", () => {
       program.programId
     );
 
-    const withdrawAmount = new BN(1);
+    const withdrawAmount = new anchor.BN(1);
 
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
     const userBalanceBefore = await provider.connection.getBalance(user.publicKey);

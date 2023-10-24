@@ -8,7 +8,7 @@ use anchor_spl::{
 };
 
 
-pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: String, amount: u64) -> Result<()> {
+pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
     let stake = &mut ctx.accounts.stake;
 
     // Check if staking does NOT exist already.
@@ -71,7 +71,7 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: String, amount: u64) 
 }
 
 #[derive(Accounts)]
-#[instruction(habit_id: String, amount: u64)]
+#[instruction(habit_id: u64, amount: u64)]
 pub struct DepositStake<'info> {
 
     #[account(mut)]
@@ -85,7 +85,7 @@ pub struct DepositStake<'info> {
         payer = signer,
         seeds = [
             STAKE_SEED.as_ref(),
-            habit_id.as_bytes().as_ref(),
+            habit_id.to_le_bytes().as_ref(),
             signer.key().as_ref()
         ],
         space = Stake::LEN,

@@ -37,7 +37,7 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>) -> Result<()> {
             },
             &[&[
                 STAKE_SEED.as_ref(),
-                stake.habit_id.as_bytes().as_ref(),
+                stake.habit_id.to_le_bytes().as_ref(),
                 stake.owner.key().as_ref(),
                 &[stake.bump],
             ]],
@@ -56,7 +56,7 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>) -> Result<()> {
             },
             &[&[
                 STAKE_SEED.as_ref(),
-                stake.habit_id.as_bytes().as_ref(),
+                stake.habit_id.to_le_bytes().as_ref(),
                 stake.owner.key().as_ref(),
                 &[stake.bump],
             ]],
@@ -83,7 +83,7 @@ pub struct WithdrawStake<'info> {
         constraint = stake.owner == signer.key(),
         seeds = [
             STAKE_SEED.as_ref(),
-            stake.habit_id.as_bytes().as_ref(),
+            stake.habit_id.to_le_bytes().as_ref(),
             signer.key().as_ref()
         ],
         bump = stake.bump
