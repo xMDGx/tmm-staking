@@ -16,6 +16,11 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: String, amount: u64) 
         return Err(CustomError::IsStakedAlready.into());
     }
 
+    // Check if token is USDC.
+    // if ctx.accounts.token_mint.mint_authority != "" {
+    //     return Err(CustomError::NotUSDC.into());
+    // }
+
     // Check if don't have USDC to stake.
     if amount <= 0 {
         return Err(CustomError::AmountMustBeGreaterThanZero.into());
@@ -26,16 +31,15 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: String, amount: u64) 
         return Err(CustomError::NotEnoughToStake.into());
     }
 
+    stake.owner = ctx.accounts.signer.key();
+
     let clock = Clock::get()?;
     stake.deposit_timestamp = clock.unix_timestamp;
-
-    stake.owner = ctx.accounts.signer.key();
-    stake.mint = ctx.accounts.token_mint.key();
 
     stake.habit_id = habit_id;
     stake.total_stake = amount;
 
-    // New syntax for bumps that is supposed to work in anchor 0.29.0
+    // New syntax for bumps that is supposed to work in anchor 0.29.0 but doesn't.
     // stake.bump = ctx.bumps.stake;
     // stake.stake_token_bump = ctx.bumps.stake_token_account;
 
@@ -82,7 +86,7 @@ pub struct DepositStake<'info> {
             habit_id.as_bytes().as_ref(),
             signer.key().as_ref()
         ],
-        space = 8 + std::mem::size_of::<Stake>(),
+        space = Stake::LEN,
         bump
     )]
     pub stake: Account<'info, Stake>,
@@ -111,5 +115,4 @@ pub struct DepositStake<'info> {
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
-    // pub rent: Sysvar<'info, Rent>,
 }

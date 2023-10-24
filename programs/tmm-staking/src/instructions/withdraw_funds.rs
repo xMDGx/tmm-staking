@@ -4,7 +4,7 @@ use crate::errors::CustomError;
 
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    token::{CloseAccount, close_account, Token, TokenAccount, Transfer, transfer},
+    token::{CloseAccount, close_account, Mint, Token, TokenAccount, Transfer, transfer},
 };
 
 
@@ -74,6 +74,8 @@ pub struct WithdrawStake<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
+    pub token_mint: Account<'info, Mint>,
+
     // Stake account.
     #[account(
         mut,
@@ -96,7 +98,8 @@ pub struct WithdrawStake<'info> {
             STAKE_TOKEN_SEED.as_ref(),
             stake.key().as_ref()
         ],
-        token::mint = stake.mint,
+        // token::mint = stake.mint,
+        token::mint = token_mint,        
         token::authority = stake,
         bump = stake.stake_token_bump
     )]
@@ -105,7 +108,8 @@ pub struct WithdrawStake<'info> {
     // User's token account (wallet).
     #[account(
         mut,
-        associated_token::mint = stake.mint,
+        // associated_token::mint = stake.mint,
+        associated_token::mint = token_mint,
         associated_token::authority = signer
     )]
     pub user_token_account: Account<'info, TokenAccount>,

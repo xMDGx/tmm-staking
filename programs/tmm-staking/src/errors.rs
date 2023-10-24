@@ -5,6 +5,9 @@ pub enum CustomError {
     #[msg("Staking exists already.")]
     IsStakedAlready,
 
+    #[msg("Token is NOT USDC.")]
+    NotUSDC,
+
     #[msg("Amount must be greater than 0.")]
     AmountMustBeGreaterThanZero,
     

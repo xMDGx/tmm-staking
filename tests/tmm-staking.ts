@@ -1,15 +1,16 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { TmmStaking } from "../target/types/tmm_staking";
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import * as splToken from "@solana/spl-token";
 import { BN } from "bn.js";
 import { assert } from "chai";
 
 describe("TMM-Staking", () => {
 
-  // Configure the client to use the local cluster.
-  const provider = anchor.AnchorProvider.local("http://localhost:8899", { commitment: "confirmed" });
+  // Configure the client to use the local cluster.  Do NOT use option
+  // of { commitment: "confirmed" }. This will cause .fetch() methods to fail.
+  const provider = anchor.AnchorProvider.local("http://localhost:8899");
   anchor.setProvider(provider);
 
   const program = anchor.workspace.TmmStaking as Program<TmmStaking>;
@@ -87,19 +88,15 @@ describe("TMM-Staking", () => {
         userTokenAccount: userTokenAccount,
         systemProgram: anchor.web3.SystemProgram.programId,
         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-        // rent: SYSVAR_RENT_PUBKEY,
       })
       .rpc({ commitment: "confirmed", skipPreflight: true });
 
-    // ERRORS OUT ON THIS LINE 'Account does not exist or has no data'
-    // const stakeData = await program.account.stake.fetch(stakeKey);
-    // console.log("Stake Account Data: ", stakeData);
-
+    const stakeData = await program.account.stake.fetch(stakeKey);
     const stakeTokenData = await splToken.getAccount(provider.connection, stakeTokenKey, "confirmed");
     const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
     assert.strictEqual(userAfter.amount.toString(), new BN(userBefore.amount.toString()).sub(stakeAmount).toString());
-    // assert.strictEqual(stakeData.totalStake.toString(), stakeAmount.toString());
+    assert.strictEqual(stakeData.totalStake.toString(), stakeAmount.toString());
     assert.strictEqual(stakeTokenData.amount.toString(), stakeAmount.toString());
   });
 
