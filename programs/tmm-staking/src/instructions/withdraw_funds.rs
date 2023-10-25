@@ -127,7 +127,7 @@ pub struct WithdrawStake<'info> {
     )]
     pub stake_token_account: Account<'info, TokenAccount>,
 
-    // User's token account (wallet).
+    // User's token account.
     #[account(
         mut,
         associated_token::mint = token_mint,
@@ -135,7 +135,7 @@ pub struct WithdrawStake<'info> {
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 
-    // TrickMyMind token account (wallet).
+    // TrickMyMind token account.
     #[account(mut)]
     pub tmm_account: Account<'info, TokenAccount>,
 
