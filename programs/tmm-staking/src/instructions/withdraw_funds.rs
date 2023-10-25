@@ -8,25 +8,25 @@ use anchor_spl::{
 };
 
 
-pub fn withdraw_funds(ctx: Context<WithdrawStake>) -> Result<()> {
+pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f32) -> Result<()> {
     let stake = &mut ctx.accounts.stake;
     let stake_unlock_time: i64 = stake.deposit_timestamp + STAKE_LOCK_PERIOD;
 
+    // Verify pct_complete is a decimal between 0 and 1.
+    require!(pct_complete >= 0.0 && pct_complete <= 1.0, CustomError::InvalidPercent);
+
+    // Verify staking exists.
+    require!(stake.total_stake > 0, CustomError::NothingStaked);
+
+    // Verify staking has unlocked.
     let clock = Clock::get()?;
+    require!(clock.unix_timestamp >= stake_unlock_time, CustomError::IsLocked);
 
-    // Check if staking does NOT exist.
-    if stake.total_stake <= 0 {
-        return Err(CustomError::NothingStaked.into());
-    }
+    // Calculate how much the user has earned vs how much goes to TrickMyMind.
+    let earned_amount: u64 = stake.total_stake * pct_complete as u64;
+    let lost_amount: u64 = stake.total_stake - earned_amount;
 
-    // Check if staking has NOT unlocked yet.
-    // if clock.unix_timestamp < stake_unlock_time {
-    //     return Err(CustomError::IsLocked.into());
-    // }
-
-    // let lamports = ctx.accounts.stake_token_account.get_lamports();
-
-    // Transfer staked funds back to the user.
+    // Withdraw earned funds back to the user's wallet.
     transfer(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -42,7 +42,26 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>) -> Result<()> {
                 &[stake.bump],
             ]],
         ),
-        stake.total_stake,
+        earned_amount,
+    )?;
+
+    // Withdraw remaining funds (lost) to TrickMyMind wallet.
+    transfer(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.stake_token_account.to_account_info(),
+                to: ctx.accounts.tmm_account.to_account_info(),
+                authority: stake.to_account_info()
+            },
+            &[&[
+                STAKE_SEED.as_ref(),
+                stake.habit_id.to_le_bytes().as_ref(),
+                stake.owner.key().as_ref(),
+                &[stake.bump],
+            ]],
+        ),
+        lost_amount,
     )?;
 
     // Close the stake token account.
@@ -63,12 +82,15 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>) -> Result<()> {
         ),
     )?;
 
+    // Reset the stake account to prevent future issues.
     stake.total_stake = 0;
+    stake.deposit_timestamp = clock.unix_timestamp;
 
     Ok(())
 }
 
 #[derive(Accounts)]
+#[instruction(pct_complete: f32)]
 pub struct WithdrawStake<'info> {
 
     #[account(mut)]
@@ -112,6 +134,10 @@ pub struct WithdrawStake<'info> {
         associated_token::authority = signer
     )]
     pub user_token_account: Account<'info, TokenAccount>,
+
+    // TrickMyMind token account (wallet).
+    #[account(mut)]
+    pub tmm_account: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
 }

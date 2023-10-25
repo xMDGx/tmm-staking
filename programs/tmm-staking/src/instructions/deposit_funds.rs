@@ -11,27 +11,11 @@ use anchor_spl::{
 pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
     let stake = &mut ctx.accounts.stake;
 
-    // Check if staking does NOT exist already.
-    require!(
-        stake.total_stake == 0,
-        CustomError::IsStakedAlready
-    );
+    // Verify token being staked is USDC.
+    // require!(ctx.accounts.token_mint.mint_authority == "", return Err(CustomError::NotUSDC));
 
-    // Check if token is USDC.
-    // if ctx.accounts.token_mint.mint_authority != "" {
-    //     return Err(CustomError::NotUSDC.into());
-    // }
-
-    // Check if do NOT have any USDC to stake.
-    require!(
-        amount > 0,
-        CustomError::AmountMustBeGreaterThanZero
-    );
-
-    // Check if user has enough USDC to stake.
-    // if ctx.accounts.user_token_account.amount < amount {
-    //     return Err(CustomError::NotEnoughToStake.into());
-    // }
+    // Verify habit_id and amount > 0.
+    require!(habit_id > 0 && amount > 0, CustomError::AmountMustBeGreaterThanZero);
 
     stake.owner = ctx.accounts.signer.key();
 
@@ -48,13 +32,7 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> 
     stake.bump = *ctx.bumps.get("stake").unwrap();
     stake.stake_token_bump = *ctx.bumps.get("stake_token_account").unwrap();
 
-    // Do we need to add little bit of SOL for gas to accounts?
-    // ctx.accounts.stake_token_account.add_lamports(1);
-
-    // let deposit_amount = (amount)
-    //     .checked_mul(10u64.pow(ctx.accounts.mint.decimals as u32))
-    //     .unwrap();
-
+    // Transfer funds from user's wallet to the stake token account.
     transfer(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),

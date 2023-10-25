@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[account]
 pub struct Stake {
-    // The owner/signer of the stake (32).
+    // The owner/signer of the habit stake (32).
     pub owner: Pubkey,
 
     // UNIX timestamp of the deposit (8).
