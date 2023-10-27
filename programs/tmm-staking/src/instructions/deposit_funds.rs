@@ -11,13 +11,10 @@ use anchor_spl::{
 pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
     let stake = &mut ctx.accounts.stake;
 
-    // Verify token being staked is USDC.
-    // require!(ctx.accounts.token_mint.mint_authority == "", return Err(CustomError::NotUSDC));
-
     // Verify habit_id and amount > 0.
     require!(habit_id > 0 && amount > 0, CustomError::AmountMustBeGreaterThanZero);
 
-    stake.owner = ctx.accounts.signer.key();
+    stake.mint = ctx.accounts.token_mint.key();
 
     let clock = Clock::get()?;
     stake.deposit_timestamp = clock.unix_timestamp;
@@ -44,7 +41,7 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> 
         ),
         amount,
     )?;
-
+    
     Ok(())
 }
 

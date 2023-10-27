@@ -38,7 +38,7 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f32) -> Result<
             &[&[
                 STAKE_SEED.as_ref(),
                 stake.habit_id.to_le_bytes().as_ref(),
-                stake.owner.key().as_ref(),
+                ctx.accounts.signer.key().as_ref(),
                 &[stake.bump],
             ]],
         ),
@@ -46,41 +46,41 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f32) -> Result<
     )?;
 
     // Withdraw remaining funds (lost) to TrickMyMind wallet.
-    transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.stake_token_account.to_account_info(),
-                to: ctx.accounts.tmm_account.to_account_info(),
-                authority: stake.to_account_info()
-            },
-            &[&[
-                STAKE_SEED.as_ref(),
-                stake.habit_id.to_le_bytes().as_ref(),
-                stake.owner.key().as_ref(),
-                &[stake.bump],
-            ]],
-        ),
-        lost_amount,
-    )?;
+    // transfer(
+    //     CpiContext::new_with_signer(
+    //         ctx.accounts.token_program.to_account_info(),
+    //         Transfer {
+    //             from: ctx.accounts.stake_token_account.to_account_info(),
+    //             to: ctx.accounts.tmm_account.to_account_info(),
+    //             authority: stake.to_account_info()
+    //         },
+    //         &[&[
+    //             STAKE_SEED.as_ref(),
+    //             stake.habit_id.to_le_bytes().as_ref(),
+    //             stake.owner.key().as_ref(),
+    //             &[stake.bump],
+    //         ]],
+    //     ),
+    //     lost_amount,
+    // )?;
 
     // Close the stake token account.
-    close_account(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            CloseAccount {
-                account: ctx.accounts.stake_token_account.to_account_info(),
-                destination: ctx.accounts.signer.to_account_info(),
-                authority: stake.to_account_info(),
-            },
-            &[&[
-                STAKE_SEED.as_ref(),
-                stake.habit_id.to_le_bytes().as_ref(),
-                stake.owner.key().as_ref(),
-                &[stake.bump],
-            ]],
-        ),
-    )?;
+    // close_account(
+    //     CpiContext::new_with_signer(
+    //         ctx.accounts.token_program.to_account_info(),
+    //         CloseAccount {
+    //             account: ctx.accounts.stake_token_account.to_account_info(),
+    //             destination: ctx.accounts.signer.to_account_info(),
+    //             authority: stake.to_account_info(),
+    //         },
+    //         &[&[
+    //             STAKE_SEED.as_ref(),
+    //             stake.habit_id.to_le_bytes().as_ref(),
+    //             stake.owner.key().as_ref(),
+    //             &[stake.bump],
+    //         ]],
+    //     ),
+    // )?;
 
     // Reset the stake account to prevent future issues.
     stake.total_stake = 0;
@@ -96,13 +96,10 @@ pub struct WithdrawStake<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
-    pub token_mint: Account<'info, Mint>,
-
     // Stake account.
     #[account(
         mut,
         close = signer,
-        constraint = stake.owner == signer.key(),
         seeds = [
             STAKE_SEED.as_ref(),
             stake.habit_id.to_le_bytes().as_ref(),
@@ -120,8 +117,7 @@ pub struct WithdrawStake<'info> {
             STAKE_TOKEN_SEED.as_ref(),
             stake.key().as_ref()
         ],
-        // token::mint = stake.mint,
-        token::mint = token_mint,        
+        token::mint = stake.mint,
         token::authority = stake,
         bump = stake.stake_token_bump
     )]
@@ -130,14 +126,14 @@ pub struct WithdrawStake<'info> {
     // User's token account.
     #[account(
         mut,
-        associated_token::mint = token_mint,
+        associated_token::mint = stake.mint,
         associated_token::authority = signer
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 
     // TrickMyMind token account.
-    #[account(mut)]
-    pub tmm_account: Account<'info, TokenAccount>,
+    // #[account(mut)]
+    // pub tmm_account: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
 }
