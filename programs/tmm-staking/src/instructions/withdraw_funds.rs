@@ -10,40 +10,40 @@ use anchor_spl::{
 
 pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f32) -> Result<()> {
     let stake = &mut ctx.accounts.stake;
-    let stake_unlock_time: i64 = stake.deposit_timestamp + STAKE_LOCK_PERIOD;
-
+    // let stake_unlock_time: i64 = stake.deposit_timestamp + STAKE_LOCK_PERIOD;
+    msg!("Percent complete: {}", pct_complete);
     // Verify pct_complete is a decimal between 0 and 1.
-    require!(pct_complete >= 0.0 && pct_complete <= 1.0, CustomError::InvalidPercent);
+    // require!(pct_complete >= 0.0 && pct_complete <= 1.0, CustomError::InvalidPercent);
 
     // Verify staking exists.
-    require!(stake.total_stake > 0, CustomError::NothingStaked);
+    // require!(stake.total_stake > 0, CustomError::NothingStaked);
 
     // Verify staking has unlocked.
     let clock = Clock::get()?;
-    require!(clock.unix_timestamp >= stake_unlock_time, CustomError::IsLocked);
+    // require!(clock.unix_timestamp >= stake_unlock_time, CustomError::IsLocked);
 
     // Calculate how much the user has earned vs how much goes to TrickMyMind.
-    let earned_amount: u64 = stake.total_stake * pct_complete as u64;
-    let lost_amount: u64 = stake.total_stake - earned_amount;
+    // let earned_amount: u64 = stake.total_stake * pct_complete as u64;
+    // let lost_amount: u64 = stake.total_stake - earned_amount;
 
     // Withdraw earned funds back to the user's wallet.
-    transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.stake_token_account.to_account_info(),
-                to: ctx.accounts.user_token_account.to_account_info(),
-                authority: stake.to_account_info()
-            },
-            &[&[
-                STAKE_SEED.as_ref(),
-                stake.habit_id.to_le_bytes().as_ref(),
-                ctx.accounts.signer.key().as_ref(),
-                &[stake.bump],
-            ]],
-        ),
-        earned_amount,
-    )?;
+    // transfer(
+    //     CpiContext::new_with_signer(
+    //         ctx.accounts.token_program.to_account_info(),
+    //         Transfer {
+    //             from: ctx.accounts.stake_token_account.to_account_info(),
+    //             to: ctx.accounts.user_token_account.to_account_info(),
+    //             authority: stake.to_account_info(),
+    //         },
+    //         &[&[
+    //             STAKE_SEED.as_ref(),
+    //             stake.habit_id.to_le_bytes().as_ref(),
+    //             ctx.accounts.signer.key().as_ref(),
+    //             &[stake.bump],
+    //         ]],
+    //     ),
+    //     earned_amount,
+    // )?;
 
     // Withdraw remaining funds (lost) to TrickMyMind wallet.
     // transfer(
@@ -103,7 +103,7 @@ pub struct WithdrawStake<'info> {
         seeds = [
             STAKE_SEED.as_ref(),
             stake.habit_id.to_le_bytes().as_ref(),
-            signer.key().as_ref()
+            signer.key().as_ref(),
         ],
         bump = stake.bump
     )]
@@ -115,7 +115,7 @@ pub struct WithdrawStake<'info> {
         close = signer,
         seeds = [
             STAKE_TOKEN_SEED.as_ref(),
-            stake.key().as_ref()
+            stake.key().as_ref(),
         ],
         token::mint = stake.mint,
         token::authority = stake,
@@ -127,7 +127,7 @@ pub struct WithdrawStake<'info> {
     #[account(
         mut,
         associated_token::mint = stake.mint,
-        associated_token::authority = signer
+        associated_token::authority = signer,
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 

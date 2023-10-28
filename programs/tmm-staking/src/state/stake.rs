@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[account]
 pub struct Stake {
-    // Mint of the stake token (32).
+    // Mint of the staked SPL token (32).
     pub mint: Pubkey,
 
     // UNIX timestamp of the deposit (8).
@@ -22,5 +22,5 @@ pub struct Stake {
 }
 
 impl Stake {
-    pub const LEN: usize = 8 + 32 + 8 + 8 + 8 + 1 + 1;
+    pub const LEN: usize = 8 + 32 + 32 + 8 + 8 + 8 + 1 + 1;
 }

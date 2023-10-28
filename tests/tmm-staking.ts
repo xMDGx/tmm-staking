@@ -16,7 +16,7 @@ describe("TMM-Staking", () => {
 
   const user = Keypair.generate();
   const tmmAccount = Keypair.generate();
-  const mintAccount = Keypair.generate();
+  const mintAuthority = Keypair.generate();
 
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
@@ -30,15 +30,15 @@ describe("TMM-Staking", () => {
   it("Setup Mint and Token Accounts", async () => {
 
     console.log("   ...starting airdrops");
-    await airdrop(provider.connection, mintAccount.publicKey);
+    await airdrop(provider.connection, mintAuthority.publicKey);
     await airdrop(provider.connection, user.publicKey);
     await airdrop(provider.connection, tmmAccount.publicKey);
 
     console.log("   ...creating token mint");
     tokenMint = await splToken.createMint(
       provider.connection,
-      mintAccount,
-      mintAccount.publicKey,
+      mintAuthority,
+      mintAuthority.publicKey,
       null,
       9
     );
@@ -51,13 +51,13 @@ describe("TMM-Staking", () => {
       user.publicKey,
     );
 
-    console.log("   ...creating TMM token account");
-    tmmTokenAccount = await splToken.createAssociatedTokenAccount(
-      provider.connection,
-      tmmAccount,
-      tokenMint,
-      tmmAccount.publicKey,
-    );
+    // console.log("   ...creating TMM token account");
+    // tmmTokenAccount = await splToken.createAssociatedTokenAccount(
+    //   provider.connection,
+    //   tmmAccount,
+    //   tokenMint,
+    //   tmmAccount.publicKey,
+    // );
 
     console.log("   ...minting tokens to user token account");
     const mintTxn = await splToken.mintTo(
@@ -65,7 +65,7 @@ describe("TMM-Staking", () => {
       user,
       tokenMint,
       userTokenAccount,
-      mintAccount,
+      mintAuthority,
       100
     );
 
@@ -85,9 +85,9 @@ describe("TMM-Staking", () => {
       program.programId
     );
 
-    const stakeAmount = new anchor.BN(1);
-
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
+
+    const stakeAmount = new anchor.BN(1);
 
     await program.methods
       .deposit(habitId, stakeAmount)
@@ -106,6 +106,12 @@ describe("TMM-Staking", () => {
     const stakeData = await program.account.stake.fetch(stakeKey);
     const stakeTokenData = await splToken.getAccount(provider.connection, stakeTokenKey, "confirmed");
     const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
+
+
+    console.log("   ...stakeKey: " + stakeKey.toString());
+    console.log("   ...stakeTokenKey: " + stakeTokenKey.toString());
+    console.log("   ...userTokenAccount: " + userTokenAccount.toString());
+    console.log("   ...userAfter: " + userAfter.address.toString());
 
     assert.strictEqual(
       userAfter.amount.toString() === new anchor.BN(userBefore.amount.toString()).sub(stakeAmount).toString(),
@@ -141,10 +147,15 @@ describe("TMM-Staking", () => {
       program.programId
     );
 
-    const pct_completed = 0.75;
-
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
     const userBalanceBefore = await provider.connection.getBalance(user.publicKey);
+
+    const pct_completed = 0.75;
+
+    console.log("   ...userBefore: " + userBefore.address.toString());
+    console.log("   ...stakeKey: " + stakeKey.toString());
+    console.log("   ...stakeTokenKey: " + stakeTokenKey.toString());
+    console.log("   ...userTokenAccount: " + userTokenAccount.toString());
 
     await program.methods
       .withdraw(pct_completed)

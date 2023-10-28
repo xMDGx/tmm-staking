@@ -21,8 +21,8 @@ pub mod tmm_staking {
         Ok(())
     }
 
-    /// Withdraws USDC funds from the stake based on the percent of activities completed
-    /// for the habit.
+    /// Withdraws USDC funds from the stake based on the percent (as a decimal) of the activities
+    /// completed for the habit.
     pub fn withdraw(ctx: Context<WithdrawStake>, pct_complete: f32) -> Result<()> {
         withdraw_funds(ctx, pct_complete).ok();
         Ok(())

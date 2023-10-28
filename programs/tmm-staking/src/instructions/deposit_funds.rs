@@ -9,10 +9,11 @@ use anchor_spl::{
 
 
 pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
-    let stake = &mut ctx.accounts.stake;
-
+    
     // Verify habit_id and amount > 0.
     require!(habit_id > 0 && amount > 0, CustomError::AmountMustBeGreaterThanZero);
+
+    let stake = &mut ctx.accounts.stake;
 
     stake.mint = ctx.accounts.token_mint.key();
 
@@ -61,7 +62,7 @@ pub struct DepositStake<'info> {
         seeds = [
             STAKE_SEED.as_ref(),
             habit_id.to_le_bytes().as_ref(),
-            signer.key().as_ref()
+            signer.key().as_ref(),
         ],
         space = Stake::LEN,
         bump
@@ -74,7 +75,7 @@ pub struct DepositStake<'info> {
         payer = signer,
         seeds = [
             STAKE_TOKEN_SEED.as_ref(),
-            stake.key().as_ref()
+            stake.key().as_ref(),
         ],
         token::mint = token_mint,
         token::authority = stake,
