@@ -51,13 +51,13 @@ describe("TMM-Staking", () => {
       user.publicKey,
     );
 
-    // console.log("   ...creating TMM token account");
-    // tmmTokenAccount = await splToken.createAssociatedTokenAccount(
-    //   provider.connection,
-    //   tmmAccount,
-    //   tokenMint,
-    //   tmmAccount.publicKey,
-    // );
+    console.log("   ...creating TMM token account");
+    tmmTokenAccount = await splToken.createAssociatedTokenAccount(
+      provider.connection,
+      tmmAccount,
+      tokenMint,
+      tmmAccount.publicKey,
+    );
 
     console.log("   ...minting tokens to user token account");
     const mintTxn = await splToken.mintTo(
@@ -107,12 +107,6 @@ describe("TMM-Staking", () => {
     const stakeTokenData = await splToken.getAccount(provider.connection, stakeTokenKey, "confirmed");
     const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
-
-    console.log("   ...stakeKey: " + stakeKey.toString());
-    console.log("   ...stakeTokenKey: " + stakeTokenKey.toString());
-    console.log("   ...userTokenAccount: " + userTokenAccount.toString());
-    console.log("   ...userAfter: " + userAfter.address.toString());
-
     assert.strictEqual(
       userAfter.amount.toString() === new anchor.BN(userBefore.amount.toString()).sub(stakeAmount).toString(),
       true,
@@ -152,11 +146,6 @@ describe("TMM-Staking", () => {
 
     const pct_completed = 0.75;
 
-    console.log("   ...userBefore: " + userBefore.address.toString());
-    console.log("   ...stakeKey: " + stakeKey.toString());
-    console.log("   ...stakeTokenKey: " + stakeTokenKey.toString());
-    console.log("   ...userTokenAccount: " + userTokenAccount.toString());
-
     await program.methods
       .withdraw(pct_completed)
       .signers([user])
@@ -165,7 +154,7 @@ describe("TMM-Staking", () => {
         stake: stakeKey,
         stakeTokenAccount: stakeTokenKey,
         userTokenAccount: userTokenAccount,
-        // tmmAccount: tmmTokenAccount,
+        tmmAccount: tmmTokenAccount,
         tokenProgram: splToken.TOKEN_PROGRAM_ID,
       })
       .rpc({ commitment: "confirmed", skipPreflight: true });

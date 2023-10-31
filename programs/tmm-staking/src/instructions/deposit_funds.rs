@@ -10,7 +10,7 @@ use anchor_spl::{
 
 pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
     
-    // Verify habit_id and amount > 0.
+    // Verify both habit_id and amount > 0.
     require!(habit_id > 0 && amount > 0, CustomError::AmountMustBeGreaterThanZero);
 
     let stake = &mut ctx.accounts.stake;
@@ -37,7 +37,7 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> 
             Transfer {
                 from: ctx.accounts.user_token_account.to_account_info(),
                 to: ctx.accounts.stake_token_account.to_account_info(),
-                authority: ctx.accounts.signer.to_account_info()
+                authority: ctx.accounts.signer.to_account_info(),
             },
         ),
         amount,
