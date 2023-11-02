@@ -9,7 +9,6 @@ use anchor_spl::{
 
 
 pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f32) -> Result<()> {
-    
     // Verify pct_complete is a decimal between 0 and 1.
     require!(pct_complete >= 0.0 && pct_complete <= 1.0, CustomError::InvalidPercent);
 
@@ -94,7 +93,6 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f32) -> Result<
 #[derive(Accounts)]
 #[instruction(pct_complete: f32)]
 pub struct WithdrawStake<'info> {
-
     #[account(mut)]
     pub signer: Signer<'info>,
 

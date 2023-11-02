@@ -9,7 +9,6 @@ use anchor_spl::{
 
 
 pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
-    
     // Verify both habit_id and amount > 0.
     require!(habit_id > 0 && amount > 0, CustomError::AmountMustBeGreaterThanZero);
 
@@ -49,7 +48,6 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> 
 #[derive(Accounts)]
 #[instruction(habit_id: u64, amount: u64)]
 pub struct DepositStake<'info> {
-
     #[account(mut)]
     pub signer: Signer<'info>,
 
