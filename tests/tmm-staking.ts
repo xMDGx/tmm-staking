@@ -20,7 +20,7 @@ describe("TMM-Staking", () => {
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
 
-  let habitId = new anchor.BN(1234567890);
+  let habitId = new anchor.BN(123456789);
   let stakeAmount = new anchor.BN(1);
 
   let userTokenAccount;
@@ -74,19 +74,18 @@ describe("TMM-Staking", () => {
 
 
   it("Deposit Fail: Stake Amount is Zero", async () => {
-    const [stakeKey, stakeBump] = PublicKey.findProgramAddressSync(
+    let err = null;
+    stakeAmount = new anchor.BN(0);
+
+    const [stakeKey] = PublicKey.findProgramAddressSync(
       [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
       program.programId
     );
 
-    const [stakeTokenKey, stakeTokenBump] = PublicKey.findProgramAddressSync(
+    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
       [stakeTokenSeed, stakeKey.toBuffer()],
       program.programId
     );
-
-    stakeAmount = new anchor.BN(0);
-    console.log("stakeAmount: " + stakeAmount.toString());
-    let err = null;
 
     try {
       let sig = await program.methods
@@ -102,64 +101,68 @@ describe("TMM-Staking", () => {
           tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
-      console.log("---------- stake zero ----------");
-      await provider.connection.getParsedTransaction(sig, "confirmed").then((res) => {
-        console.log(res);
-      });
     } catch (error) {
       err = error as anchor.AnchorError;
-      console.log(err?.error?.errorCode?.code);
-      console.log("----------");
-      console.log(err);
     }
+
+    assert.include(
+      ["ConstraintRaw", "ConstraintSeeds"],
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for stakeAmount of zero",
+    )
   });
 
 
-  // it("Deposit Fail: HabitID is Zero", async () => {
-  //   const [stakeKey, stakeBump] = PublicKey.findProgramAddressSync(
-  //     [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
-  //     program.programId
-  //   );
+  it("Deposit Fail: HabitID is Zero", async () => {
+    let err = null;
+    habitId = new anchor.BN(0);
 
-  //   const [stakeTokenKey, stakeTokenBump] = PublicKey.findProgramAddressSync(
-  //     [stakeTokenSeed, stakeKey.toBuffer()],
-  //     program.programId
-  //   );
-
-  //   habitId = new anchor.BN(0);
-
-  //   try {
-  //     let response = await program.methods
-  //       .deposit(habitId, stakeAmount)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         tokenMint: tokenMint,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         systemProgram: anchor.web3.SystemProgram.programId,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //     console.log("---------- habitID zero ----------");
-  //     console.log(response);
-  //   } catch (error) {
-  //     const err = error as anchor.AnchorError;
-  //     console.log(err.error.errorCode.code);
-  //     console.log(err.error.errorMessage);
-  //     // assert.strictEqual(error.toString().includes("Stake amount is zero"), true);
-  //   }
-  // });
-
-
-  it("Deposit Success", async () => {
-    const [stakeKey, stakeBump] = PublicKey.findProgramAddressSync(
+    const [stakeKey] = PublicKey.findProgramAddressSync(
       [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
       program.programId
     );
 
-    const [stakeTokenKey, stakeTokenBump] = PublicKey.findProgramAddressSync(
+    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
+      [stakeTokenSeed, stakeKey.toBuffer()],
+      program.programId
+    );
+
+    try {
+      let sig = await program.methods
+        .deposit(habitId, stakeAmount)
+        .signers([user])
+        .accounts({
+          signer: user.publicKey,
+          tokenMint: tokenMint,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
+
+    assert.include(
+      ["ConstraintRaw", "ConstraintSeeds"],
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for habitID of zero",
+    )
+  });
+
+
+  it("Deposit Success", async () => {
+    habitId = new anchor.BN(123456789);
+    stakeAmount = new anchor.BN(2);
+
+    const [stakeKey] = PublicKey.findProgramAddressSync(
+      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
       [stakeTokenSeed, stakeKey.toBuffer()],
       program.programId
     );
@@ -207,17 +210,17 @@ describe("TMM-Staking", () => {
 
 
   it("Deposit Fail: Stake Exists Already", async () => {
-    const [stakeKey, stakeBump] = PublicKey.findProgramAddressSync(
+    let err = null;
+
+    const [stakeKey] = PublicKey.findProgramAddressSync(
       [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
       program.programId
     );
 
-    const [stakeTokenKey, stakeTokenBump] = PublicKey.findProgramAddressSync(
+    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
       [stakeTokenSeed, stakeKey.toBuffer()],
       program.programId
     );
-
-    let err = null;
 
     try {
       await program.methods
@@ -242,12 +245,12 @@ describe("TMM-Staking", () => {
 
 
   it("Withdraw Success", async () => {
-    const [stakeKey, stakeBump] = PublicKey.findProgramAddressSync(
+    const [stakeKey] = PublicKey.findProgramAddressSync(
       [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
       program.programId
     );
 
-    const [stakeTokenKey, stakeTokenBump] = PublicKey.findProgramAddressSync(
+    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
       [stakeTokenSeed, stakeKey.toBuffer()],
       program.programId
     );
