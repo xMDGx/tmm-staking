@@ -22,10 +22,13 @@ describe("TMM-Staking", () => {
 
   let habitId = new anchor.BN(123456789);
   let stakeAmount = new anchor.BN(1);
+  let pct_completed = Math.random();
 
   let userTokenAccount;
   let tmmTokenAccount;
   let tokenMint;
+
+  let err = null;
 
 
   it("Setup Mint and Token Accounts", async () => {
@@ -73,22 +76,48 @@ describe("TMM-Staking", () => {
   });
 
 
+  // Find/declare program accounts.
+  const [stakeKey] = PublicKey.findProgramAddressSync(
+    [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
+    program.programId
+  );
+  const [stakeTokenKey] = PublicKey.findProgramAddressSync(
+    [stakeTokenSeed, stakeKey.toBuffer()],
+    program.programId
+  );
+
+
+  it("Withdraw Fail: Not initialized", async () => {
+    try {
+      await program.methods
+        .withdraw(pct_completed)
+        .signers([user])
+        .accounts({
+          signer: user.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          tmmAccount: tmmTokenAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
+
+    assert.strictEqual(
+      "AccountNotInitialized",
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for account not being initialized",
+    )
+  });
+
+
   it("Deposit Fail: Stake Amount is Zero", async () => {
-    let err = null;
     stakeAmount = new anchor.BN(0);
 
-    const [stakeKey] = PublicKey.findProgramAddressSync(
-      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
-      program.programId
-    );
-
-    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
-      [stakeTokenSeed, stakeKey.toBuffer()],
-      program.programId
-    );
-
     try {
-      let sig = await program.methods
+      await program.methods
         .deposit(habitId, stakeAmount)
         .signers([user])
         .accounts({
@@ -105,8 +134,8 @@ describe("TMM-Staking", () => {
       err = error as anchor.AnchorError;
     }
 
-    assert.include(
-      ["ConstraintRaw", "ConstraintSeeds"],
+    assert.strictEqual(
+      "AmountMustBeGreaterThanZero",
       err?.error?.errorCode?.code,
       "Invalid error code returned for stakeAmount of zero",
     )
@@ -114,21 +143,11 @@ describe("TMM-Staking", () => {
 
 
   it("Deposit Fail: HabitID is Zero", async () => {
-    let err = null;
     habitId = new anchor.BN(0);
-
-    const [stakeKey] = PublicKey.findProgramAddressSync(
-      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
-      program.programId
-    );
-
-    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
-      [stakeTokenSeed, stakeKey.toBuffer()],
-      program.programId
-    );
+    stakeAmount = new anchor.BN(1);
 
     try {
-      let sig = await program.methods
+      await program.methods
         .deposit(habitId, stakeAmount)
         .signers([user])
         .accounts({
@@ -146,7 +165,7 @@ describe("TMM-Staking", () => {
     }
 
     assert.include(
-      ["ConstraintRaw", "ConstraintSeeds"],
+      ["AmountMustBeGreaterThanZero", "ConstraintSeeds"],
       err?.error?.errorCode?.code,
       "Invalid error code returned for habitID of zero",
     )
@@ -156,16 +175,6 @@ describe("TMM-Staking", () => {
   it("Deposit Success", async () => {
     habitId = new anchor.BN(123456789);
     stakeAmount = new anchor.BN(2);
-
-    const [stakeKey] = PublicKey.findProgramAddressSync(
-      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
-      program.programId
-    );
-
-    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
-      [stakeTokenSeed, stakeKey.toBuffer()],
-      program.programId
-    );
 
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
@@ -188,8 +197,8 @@ describe("TMM-Staking", () => {
     const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
     assert.strictEqual(
-      userAfter.amount.toString() === new anchor.BN(userBefore.amount.toString()).sub(stakeAmount).toString(),
-      true,
+      userAfter.amount.toString(),
+      new anchor.BN(userBefore.amount.toString()).sub(stakeAmount).toString(),
       "UserAfter balance of " + userAfter.amount.toString() +
       " != UserBefore balance of " + userBefore.amount.toString() +
       " minus stakeAmount of " + stakeAmount.toString()
@@ -202,26 +211,14 @@ describe("TMM-Staking", () => {
     );
 
     assert.strictEqual(
-      stakeTokenData.amount.toString() === stakeAmount.toString(),
-      true,
+      stakeTokenData.amount.toString(),
+      stakeAmount.toString(),
       "StakeTokenData of " + stakeTokenData.amount.toString() + " != stakeAmount of " + stakeAmount.toString()
     );
   });
 
 
   it("Deposit Fail: Stake Exists Already", async () => {
-    let err = null;
-
-    const [stakeKey] = PublicKey.findProgramAddressSync(
-      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
-      program.programId
-    );
-
-    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
-      [stakeTokenSeed, stakeKey.toBuffer()],
-      program.programId
-    );
-
     try {
       await program.methods
         .deposit(habitId, stakeAmount)
@@ -244,21 +241,66 @@ describe("TMM-Staking", () => {
   });
 
 
+  it("Withdraw Fail: Staking locked", async () => {
+    try {
+      await program.methods
+        .withdraw(pct_completed)
+        .signers([user])
+        .accounts({
+          signer: user.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          tmmAccount: tmmTokenAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
+
+    assert.include(
+      ["IsLocked", undefined],
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for staking locked",
+    )
+  });
+
+
+  it("Withdraw Fail: Percentage out of bounds", async () => {
+    pct_completed = 1.1;
+
+    try {
+      await program.methods
+        .withdraw(pct_completed)
+        .signers([user])
+        .accounts({
+          signer: user.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          tmmAccount: tmmTokenAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
+
+    assert.strictEqual(
+      "InvalidPercent",
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for percentage out of bounds",
+    )
+  });
+
+
   it("Withdraw Success", async () => {
-    const [stakeKey] = PublicKey.findProgramAddressSync(
-      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
-      program.programId
-    );
-
-    const [stakeTokenKey] = PublicKey.findProgramAddressSync(
-      [stakeTokenSeed, stakeKey.toBuffer()],
-      program.programId
-    );
-
+    pct_completed = Math.random();
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
-    const userBalanceBefore = await provider.connection.getBalance(user.publicKey);
 
-    const pct_completed = 0.75;
+    console.log("   ...waiting 20 seconds for withdraw");
+    await new Promise(resolve => setTimeout(resolve, 20000));
 
     await program.methods
       .withdraw(pct_completed)
@@ -273,7 +315,10 @@ describe("TMM-Staking", () => {
       })
       .rpc({ commitment: "confirmed", skipPreflight: true });
 
-    const userBalanceAfter = await provider.connection.getBalance(user.publicKey);
+    const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
+
+    console.log("User Before: " + userBefore.amount.toString());
+    console.log("User After: " + userAfter.amount.toString());
 
     // assert.strictEqual(userBalanceAfter.toString(), new BN(userBalanceBefore.toString()).add(withdrawAmount).toString());
   });
@@ -298,7 +343,7 @@ async function confirmTxn(connection: Connection, txn: any) {
 
 // Function for requesting SOL airdrops.
 async function airdrop(connection: Connection, address: PublicKey) {
-  const txn = await connection.requestAirdrop(address, 3 * LAMPORTS_PER_SOL);
+  const txn = await connection.requestAirdrop(address, 10 * LAMPORTS_PER_SOL);
   await confirmTxn(connection, txn);
 };
 

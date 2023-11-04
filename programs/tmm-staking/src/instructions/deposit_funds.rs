@@ -10,15 +10,14 @@ use anchor_spl::{
 
 pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
     // Verify both habit_id and amount > 0.
-    require!(amount > 0, CustomError::AmountMustBeGreaterThanZero);
+    // require!(habit_id > 0 && amount > 0, CustomError::AmountMustBeGreaterThanZero);
 
     let stake = &mut ctx.accounts.stake;
 
-    stake.mint = ctx.accounts.token_mint.key();
-
     let clock = Clock::get()?;
     stake.deposit_timestamp = clock.unix_timestamp;
-
+    
+    stake.mint = ctx.accounts.token_mint.key();
     stake.habit_id = habit_id;
     stake.total_stake = amount;
 
@@ -56,30 +55,30 @@ pub struct DepositStake<'info> {
     // Stake account.
     #[account(
         init,
-        constraint = habit_id > 0 && amount > 0,
         payer = signer,
+        constraint = (habit_id > 0  && amount > 0) @ CustomError::AmountMustBeGreaterThanZero,
         seeds = [
             STAKE_SEED.as_ref(),
             habit_id.to_le_bytes().as_ref(),
             signer.key().as_ref(),
         ],
         space = Stake::LEN,
-        bump
+        bump,
     )]
     pub stake: Account<'info, Stake>,
 
     // Stake token account PDA.
     #[account(
         init,
-        constraint = habit_id > 0 && amount > 0,
         payer = signer,
+        constraint = (habit_id > 0 && amount > 0) @ CustomError::AmountMustBeGreaterThanZero,
         seeds = [
             STAKE_TOKEN_SEED.as_ref(),
             stake.key().as_ref(),
         ],
         token::mint = token_mint,
         token::authority = stake,
-        bump
+        bump,
     )]
     pub stake_token_account: Account<'info, TokenAccount>,
 
@@ -87,7 +86,7 @@ pub struct DepositStake<'info> {
     #[account(
         mut,
         associated_token::mint = token_mint,
-        associated_token::authority = signer
+        associated_token::authority = signer,
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 

@@ -13,15 +13,15 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f32) -> Result<
     require!(pct_complete >= 0.0 && pct_complete <= 1.0, CustomError::InvalidPercent);
 
     let stake = &mut ctx.accounts.stake;
-    
-    // Verify staking exists.
-    require!(stake.total_stake > 0, CustomError::NothingStaked);
 
     let clock = Clock::get()?;
     let stake_unlock_time: i64 = stake.deposit_timestamp + STAKE_LOCK_PERIOD;
 
     // Verify staking has unlocked.
-    require!(clock.unix_timestamp >= stake_unlock_time, CustomError::IsLocked);
+    // require!(clock.unix_timestamp >= stake_unlock_time, CustomError::IsLocked);
+    if clock.unix_timestamp < stake_unlock_time {
+        panic!("Lock period of {}", STAKE_LOCK_PERIOD.to_string());
+    }
 
     // Calculate how much the user has earned vs how much goes to TrickMyMind.
     let earned_amount: u64 = stake.total_stake * pct_complete as u64;
@@ -105,7 +105,7 @@ pub struct WithdrawStake<'info> {
             stake.habit_id.to_le_bytes().as_ref(),
             signer.key().as_ref(),
         ],
-        bump = stake.bump
+        bump = stake.bump,
     )]
     pub stake: Account<'info, Stake>,
     
@@ -118,7 +118,7 @@ pub struct WithdrawStake<'info> {
         ],
         token::mint = stake.mint,
         token::authority = stake,
-        bump = stake.stake_token_bump
+        bump = stake.stake_token_bump,
     )]
     pub stake_token_account: Account<'info, TokenAccount>,
 
