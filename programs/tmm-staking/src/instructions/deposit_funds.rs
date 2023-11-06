@@ -9,9 +9,6 @@ use anchor_spl::{
 
 
 pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {
-    // Verify both habit_id and amount > 0.
-    // require!(habit_id > 0 && amount > 0, CustomError::AmountMustBeGreaterThanZero);
-
     let stake = &mut ctx.accounts.stake;
 
     let clock = Clock::get()?;
@@ -56,7 +53,7 @@ pub struct DepositStake<'info> {
     #[account(
         init,
         payer = signer,
-        constraint = (habit_id > 0  && amount > 0) @ CustomError::AmountMustBeGreaterThanZero,
+        constraint = habit_id > 0  && amount > 0 @ CustomError::AmountMustBeGreaterThanZero,
         seeds = [
             STAKE_SEED.as_ref(),
             habit_id.to_le_bytes().as_ref(),
@@ -71,7 +68,7 @@ pub struct DepositStake<'info> {
     #[account(
         init,
         payer = signer,
-        constraint = (habit_id > 0 && amount > 0) @ CustomError::AmountMustBeGreaterThanZero,
+        constraint = habit_id > 0 && amount > 0 @ CustomError::AmountMustBeGreaterThanZero,
         seeds = [
             STAKE_TOKEN_SEED.as_ref(),
             stake.key().as_ref(),

@@ -11,7 +11,7 @@ pub struct Stake {
     // The ID of the habit being staked against (8).
     pub habit_id: u64,
 
-    // Total stake amount (8).
+    // Total stake amount.  Limit to integers (8).
     pub total_stake: u64,
 
     // The bump seed for the stake (1).
