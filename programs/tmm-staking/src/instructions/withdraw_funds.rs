@@ -1,5 +1,5 @@
 use crate::state::*;
-use crate::constants::{STAKE_SEED, STAKE_TOKEN_SEED, STAKE_LOCK_PERIOD, TMM_ACCOUNT_KEY};
+use crate::constants::{STAKE_SEED, STAKE_TOKEN_SEED, STAKE_LOCK_PERIOD, VAULT_KEY};
 use crate::errors::CustomError;
 
 use anchor_lang::prelude::*;
@@ -10,8 +10,8 @@ use anchor_spl::{
 
 pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f64) -> Result<()> {
 
-    if *ctx.accounts.tmm_token_account.to_account_info().key != TMM_ACCOUNT_KEY {
-        panic!("TMM key {} does not match account {}", TMM_ACCOUNT_KEY, ctx.accounts.tmm_token_account.to_account_info().key);
+    if *ctx.accounts.vault_account.to_account_info().key != VAULT_KEY {
+        panic!("Vault key {} does not match account {}", VAULT_KEY.key(), ctx.accounts.vault_account.to_account_info().key);
     }
 
     // Verify pct_complete is an integer between 0 and 1.
@@ -55,7 +55,7 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f64) -> Result<
             ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: ctx.accounts.stake_token_account.to_account_info(),
-                to: ctx.accounts.tmm_token_account.to_account_info(),
+                to: ctx.accounts.vault_account.to_account_info(),
                 authority: stake.to_account_info(),
             },
             &[&[
@@ -131,11 +131,9 @@ pub struct WithdrawStake<'info> {
     // TrickMyMind token account.
     #[account(
         mut,
-        // constraint = tmm_token_account.authority == TMM_ACCOUNT_KEY,
-        associated_token::mint = stake.mint,
-        associated_token::authority = tmm_token_account.owner,
+        constraint = vault_account.key() == VAULT_KEY.key(),
     )]
-    pub tmm_token_account: Account<'info, TokenAccount>,
+    pub vault_account: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
 }

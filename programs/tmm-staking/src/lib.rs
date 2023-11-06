@@ -14,6 +14,12 @@ declare_id!("2oXApx9k2sPsCdDbQRhbxwzQxm4nrVz3SXK1CorL1FhL");
 pub mod tmm_staking {
     use super::*;
 
+    /// Initializes the TMM deposit/vault account.  Mostly used for testing
+    /// to verify vault account is validated in transferring funds on withdrawals.
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        initialize_vault(ctx)
+    }
+
     /// Deposits USDC funds into a stake based on the user's habit where habit_id is a
     /// derived ID passed by the app backend.
     pub fn deposit(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> Result<()> {

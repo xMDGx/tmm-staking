@@ -19,11 +19,8 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> 
     stake.total_stake = amount;
 
     // New syntax for bumps that is supposed to work in anchor 0.29.0 but doesn't.
-    // stake.bump = ctx.bumps.stake;
-    // stake.stake_token_bump = ctx.bumps.stake_token_account;
-
-    stake.bump = *ctx.bumps.get("stake").unwrap();
-    stake.stake_token_bump = *ctx.bumps.get("stake_token_account").unwrap();
+    stake.bump = ctx.bumps.stake;
+    stake.stake_token_bump = ctx.bumps.stake_token_account;
 
     // Transfer funds from user's wallet to the stake token account.
     transfer(

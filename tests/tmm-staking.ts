@@ -15,7 +15,7 @@ describe("TMM-Staking", () => {
 
   const user = Keypair.generate();
   const mintAuthority = Keypair.generate();
-  const tmmAccount = Keypair.fromSecretKey(new Uint8Array([
+  const vaultAccount = Keypair.fromSecretKey(new Uint8Array([
     200, 109, 166, 2, 173, 23, 247, 101, 164, 231,
     26, 52, 240, 153, 99, 126, 129, 198, 104, 112,
     237, 70, 241, 104, 143, 176, 222, 143, 227, 180,
@@ -25,6 +25,7 @@ describe("TMM-Staking", () => {
     11, 4, 206, 107
   ]));
 
+  const vaultSeed = anchor.utils.bytes.utf8.encode("VAULT_SEED");
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
 
@@ -36,7 +37,7 @@ describe("TMM-Staking", () => {
   let pct_completed = Math.random();
 
   let userTokenAccount;
-  let tmmTokenAccount;
+  // let tmmTokenAccount;
   let tokenMint;
 
   let err = null;
@@ -63,21 +64,29 @@ describe("TMM-Staking", () => {
       user.publicKey,
     );
 
-    console.log("   ...creating TMM token account");
-    tmmTokenAccount = await splToken.createAssociatedTokenAccount(
-      provider.connection,
-      mintAuthority,
-      tokenMint,
-      tmmAccount.publicKey,
-      { commitment: 'confirmed' },
-    );
+    // console.log("   ...creating TMM account");
+    // await splToken.createAccount(
+    //   provider.connection,
+    //   mintAuthority,
+    //   tokenMint,
+    //   tmmAccount.publicKey,
+    // );
 
-    let tmm = await splToken.getAccount(provider.connection, tmmTokenAccount, "confirmed");
-    let tmm2 = await provider.connection.getParsedAccountInfo(tmmTokenAccount, "confirmed");
-    console.log("TMM: ");
-    console.log(tmm);
-    console.log("TMM2: ");
-    console.log(tmm2);
+    // console.log("   ...creating TMM token account");
+    // tmmTokenAccount = await splToken.createAssociatedTokenAccount(
+    //   provider.connection,
+    //   mintAuthority,
+    //   tokenMint,
+    //   tmmAccount.publicKey,
+    //   { commitment: 'confirmed' },
+    // );
+
+    // let tmm = await splToken.getAccount(provider.connection, tmmTokenAccount, "confirmed");
+    // let tmm2 = await provider.connection.getParsedAccountInfo(tmmTokenAccount, "confirmed");
+    // console.log("TMM: ");
+    // console.log(tmm);
+    // console.log("TMM2: ");
+    // console.log(tmm2);
 
     console.log("   ...minting tokens to user token account");
     const mintTxn = await splToken.mintTo(
@@ -94,6 +103,10 @@ describe("TMM-Staking", () => {
 
 
   // Find/declare program accounts.
+  const [vaultKey] = PublicKey.findProgramAddressSync(
+    [vaultSeed],
+    program.programId
+  );
   const [stakeKey] = PublicKey.findProgramAddressSync(
     [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
     program.programId
@@ -102,6 +115,20 @@ describe("TMM-Staking", () => {
     [stakeTokenSeed, stakeKey.toBuffer()],
     program.programId
   );
+
+
+  it("Initialize Vault Account", async () => {
+    await program.methods
+      .initialize()
+      .accounts({
+        signer: mintAuthority.publicKey,
+        tokenMint: vaultAccount.publicKey,
+        vaultAccount: vaultKey,
+        // systemProgram: anchor.web3.SystemProgram.programId,
+        // tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      })
+      .rpc({ commitment: "confirmed", skipPreflight: true });;
+  });
 
 
   // it("Withdraw Fail: Not initialized", async () => {
@@ -443,7 +470,7 @@ describe("TMM-Staking", () => {
         stake: stakeKey,
         stakeTokenAccount: stakeTokenKey,
         userTokenAccount: userTokenAccount,
-        tmmTokenAccount: tmmTokenAccount,
+        vaultAccount: vaultAccount.publicKey,
         tokenProgram: splToken.TOKEN_PROGRAM_ID,
       })
       .rpc({ commitment: "confirmed", skipPreflight: true });
