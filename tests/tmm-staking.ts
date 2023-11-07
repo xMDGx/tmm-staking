@@ -13,9 +13,11 @@ describe("TMM-Staking", () => {
 
   const program = anchor.workspace.TmmStaking as Program<TmmStaking>;
 
-  const user = Keypair.generate();
-  const mintAuthority = Keypair.generate();
-  const vaultAccount = Keypair.fromSecretKey(new Uint8Array([
+  const userKeyPair = Keypair.generate();
+  const tokenKeyPair = Keypair.generate();
+
+  // Use same key for tmm key and account to validate the address.
+  const tmmKeyPair = Keypair.fromSecretKey(new Uint8Array([
     200, 109, 166, 2, 173, 23, 247, 101, 164, 231,
     26, 52, 240, 153, 99, 126, 129, 198, 104, 112,
     237, 70, 241, 104, 143, 176, 222, 143, 227, 180,
@@ -25,7 +27,6 @@ describe("TMM-Staking", () => {
     11, 4, 206, 107
   ]));
 
-  const vaultSeed = anchor.utils.bytes.utf8.encode("VAULT_SEED");
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
 
@@ -37,21 +38,22 @@ describe("TMM-Staking", () => {
   let pct_completed = Math.random();
 
   let userTokenAccount;
-  // let tmmTokenAccount;
+  let tmmAccount;
   let tokenMint;
 
   let err = null;
 
   it("Setup Mint and Token Accounts", async () => {
     console.log("   ...starting airdrops");
-    await airdrop(provider.connection, mintAuthority.publicKey);
-    await airdrop(provider.connection, user.publicKey);
+    await airdrop(provider.connection, userKeyPair.publicKey);
+    await airdrop(provider.connection, tokenKeyPair.publicKey);
+    await airdrop(provider.connection, tmmKeyPair.publicKey);
 
     console.log("   ...creating token mint");
     tokenMint = await splToken.createMint(
       provider.connection,
-      mintAuthority,
-      mintAuthority.publicKey,
+      tokenKeyPair,
+      tokenKeyPair.publicKey,
       null,
       9
     );
@@ -59,56 +61,38 @@ describe("TMM-Staking", () => {
     console.log("   ...creating user token account");
     userTokenAccount = await splToken.createAssociatedTokenAccount(
       provider.connection,
-      user,
+      userKeyPair,
       tokenMint,
-      user.publicKey,
+      userKeyPair.publicKey,
+      { commitment: 'confirmed' },
     );
 
-    // console.log("   ...creating TMM account");
-    // await splToken.createAccount(
-    //   provider.connection,
-    //   mintAuthority,
-    //   tokenMint,
-    //   tmmAccount.publicKey,
-    // );
-
-    // console.log("   ...creating TMM token account");
-    // tmmTokenAccount = await splToken.createAssociatedTokenAccount(
-    //   provider.connection,
-    //   mintAuthority,
-    //   tokenMint,
-    //   tmmAccount.publicKey,
-    //   { commitment: 'confirmed' },
-    // );
-
-    // let tmm = await splToken.getAccount(provider.connection, tmmTokenAccount, "confirmed");
-    // let tmm2 = await provider.connection.getParsedAccountInfo(tmmTokenAccount, "confirmed");
-    // console.log("TMM: ");
-    // console.log(tmm);
-    // console.log("TMM2: ");
-    // console.log(tmm2);
+    console.log("   ...creating TMM token account");
+    tmmAccount = await splToken.createAssociatedTokenAccount(
+      provider.connection,
+      tmmKeyPair,
+      tokenMint,
+      tmmKeyPair.publicKey,
+      { commitment: 'confirmed' },
+    );
 
     console.log("   ...minting tokens to user token account");
     const mintTxn = await splToken.mintTo(
       provider.connection,
-      user,
+      userKeyPair,
       tokenMint,
       userTokenAccount,
-      mintAuthority,
-      100
+      tokenKeyPair,
+      100,
+      [],
+      { commitment: 'confirmed' },
     );
-
     await confirmTxn(provider.connection, mintTxn);
   });
 
 
-  // Find/declare program accounts.
-  const [vaultKey] = PublicKey.findProgramAddressSync(
-    [vaultSeed],
-    program.programId
-  );
   const [stakeKey] = PublicKey.findProgramAddressSync(
-    [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), user.publicKey.toBuffer()],
+    [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), userKeyPair.publicKey.toBuffer()],
     program.programId
   );
   const [stakeTokenKey] = PublicKey.findProgramAddressSync(
@@ -117,105 +101,91 @@ describe("TMM-Staking", () => {
   );
 
 
-  it("Initialize Vault Account", async () => {
-    await program.methods
-      .initialize()
-      .accounts({
-        signer: mintAuthority.publicKey,
-        tokenMint: vaultAccount.publicKey,
-        vaultAccount: vaultKey,
-        // systemProgram: anchor.web3.SystemProgram.programId,
-        // tokenProgram: splToken.TOKEN_PROGRAM_ID,
-      })
-      .rpc({ commitment: "confirmed", skipPreflight: true });;
+  it("Withdraw Fail: Not initialized", async () => {
+    try {
+      await program.methods
+        .withdraw(pct_completed)
+        .signers([userKeyPair])
+        .accounts({
+          signer: userKeyPair.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          tmmAccount: tmmAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
+
+    assert.strictEqual(
+      "AccountNotInitialized",
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for account not being initialized",
+    )
   });
 
 
-  // it("Withdraw Fail: Not initialized", async () => {
-  //   try {
-  //     await program.methods
-  //       .withdraw(pct_completed)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         tmmTokenAccount: tmmTokenAccount,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     err = error as anchor.AnchorError;
-  //   }
+  it("Deposit Fail: Stake Amount is Zero", async () => {
+    stakeAmount = new anchor.BN(0);
 
-  //   assert.strictEqual(
-  //     "AccountNotInitialized",
-  //     err?.error?.errorCode?.code,
-  //     "Invalid error code returned for account not being initialized",
-  //   )
-  // });
+    try {
+      await program.methods
+        .deposit(habitId, stakeAmount)
+        .signers([userKeyPair])
+        .accounts({
+          signer: userKeyPair.publicKey,
+          tokenMint: tokenMint,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
 
-
-  // it("Deposit Fail: Stake Amount is Zero", async () => {
-  //   stakeAmount = new anchor.BN(0);
-
-  //   try {
-  //     await program.methods
-  //       .deposit(habitId, stakeAmount)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         tokenMint: tokenMint,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         systemProgram: anchor.web3.SystemProgram.programId,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     err = error as anchor.AnchorError;
-  //   }
-
-  //   assert.strictEqual(
-  //     "AmountMustBeGreaterThanZero",
-  //     err?.error?.errorCode?.code,
-  //     "Invalid error code returned for stakeAmount of zero",
-  //   )
-  // });
+    assert.strictEqual(
+      "AmountMustBeGreaterThanZero",
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for stakeAmount of zero",
+    )
+  });
 
 
-  // it("Deposit Fail: HabitID is Zero", async () => {
-  //   habitId = new anchor.BN(0);
-  //   stakeAmount = new anchor.BN(1);
+  it("Deposit Fail: HabitID is Zero", async () => {
+    habitId = new anchor.BN(0);
+    stakeAmount = new anchor.BN(1);
 
-  //   try {
-  //     await program.methods
-  //       .deposit(habitId, stakeAmount)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         tokenMint: tokenMint,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         systemProgram: anchor.web3.SystemProgram.programId,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     err = error as anchor.AnchorError;
-  //   }
+    try {
+      await program.methods
+        .deposit(habitId, stakeAmount)
+        .signers([userKeyPair])
+        .accounts({
+          signer: userKeyPair.publicKey,
+          tokenMint: tokenMint,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
 
-  //   // While there is a constraint for habitID > 0, the error code returned is
-  //   // because the habitID is used for the account seeds.
-  //   assert.strictEqual(
-  //     "ConstraintSeeds",
-  //     err?.error?.errorCode?.code,
-  //     "Invalid error code returned for habitID of zero",
-  //   )
-  // });
+    // While there is a constraint for habitID > 0, the error code returned is
+    // because the habitID is used for the account seeds.
+    assert.strictEqual(
+      "ConstraintSeeds",
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for habitID of zero",
+    )
+  });
 
 
   it("Deposit Success", async () => {
@@ -226,9 +196,9 @@ describe("TMM-Staking", () => {
 
     await program.methods
       .deposit(habitId, stakeAmount)
-      .signers([user])
+      .signers([userKeyPair])
       .accounts({
-        signer: user.publicKey,
+        signer: userKeyPair.publicKey,
         tokenMint: tokenMint,
         stake: stakeKey,
         stakeTokenAccount: stakeTokenKey,
@@ -264,178 +234,178 @@ describe("TMM-Staking", () => {
   });
 
 
-  // it("Deposit Fail: Stake Exists Already", async () => {
-  //   try {
-  //     await program.methods
-  //       .deposit(habitId, stakeAmount)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         tokenMint: tokenMint,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         systemProgram: anchor.web3.SystemProgram.programId,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     err = error as anchor.AnchorError;
-  //   }
+  it("Deposit Fail: Stake Exists Already", async () => {
+    try {
+      await program.methods
+        .deposit(habitId, stakeAmount)
+        .signers([userKeyPair])
+        .accounts({
+          signer: userKeyPair.publicKey,
+          tokenMint: tokenMint,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
 
-  //   assert.isTrue(parseSolanaError(err?.logs, "already in use"));
-  // });
-
-
-  // it("Withdraw Fail: Staking locked", async () => {
-  //   try {
-  //     await program.methods
-  //       .withdraw(pct_completed)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         tmmTokenAccount: tmmTokenAccount,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     err = error as anchor.AnchorError;
-  //   }
-
-  //   console.log("   ...waiting " + stakeLockTime / 1000 + " seconds for withdraw");
-  //   await new Promise(resolve => setTimeout(resolve, stakeLockTime));
-
-  //   assert.strictEqual(
-  //     "IsLocked",
-  //     err?.error?.errorCode?.code,
-  //     "Invalid error code returned for staking locked",
-  //   )
-  // });
+    assert.isTrue(parseSolanaError(err?.logs, "already in use"));
+  });
 
 
-  // it("Withdraw Fail: Percentage out of bounds", async () => {
-  //   pct_completed = 1.1;
+  it("Withdraw Fail: Staking locked", async () => {
+    try {
+      await program.methods
+        .withdraw(pct_completed)
+        .signers([userKeyPair])
+        .accounts({
+          signer: userKeyPair.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          tmmAccount: tmmAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
 
-  //   try {
-  //     await program.methods
-  //       .withdraw(pct_completed)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         tmmTokenAccount: tmmTokenAccount,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     err = error as anchor.AnchorError;
-  //   }
+    console.log("   ...waiting " + stakeLockTime / 1000 + " seconds for withdraw");
+    await new Promise(resolve => setTimeout(resolve, stakeLockTime));
 
-  //   assert.strictEqual(
-  //     "InvalidPercent",
-  //     err?.error?.errorCode?.code,
-  //     "Invalid error code returned for percentage out of bounds",
-  //   )
-  // });
-
-
-  // it("Withdraw Fail: Invalid Signer", async () => {
-  //   pct_completed = Math.random();
-  //   try {
-  //     await program.methods
-  //       .withdraw(pct_completed)
-  //       .signers([randomAccount])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         tmmTokenAccount: tmmTokenAccount,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     // Doesn't return an error code, so check with custom error msg.
-  //     err = "Invalid Signer Error";
-  //   }
-
-  //   assert.strictEqual(
-  //     "Invalid Signer Error",
-  //     err,
-  //     "Invalid error code returned for invalid signer",
-  //   )
-  // });
+    assert.strictEqual(
+      "IsLocked",
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for staking locked",
+    )
+  });
 
 
-  // it("Withdraw Fail: Invalid Signer Account", async () => {
-  //   try {
-  //     let sig = await program.methods
-  //       .withdraw(pct_completed)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: randomAccount.publicKey,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: userTokenAccount,
-  //         tmmTokenAccount: tmmTokenAccount,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     // Doesn't return an error code, so check with custom error msg.
-  //     err = "Invalid Signer Account Error";
-  //   }
+  it("Withdraw Fail: Percentage out of bounds", async () => {
+    pct_completed = 1.1;
 
-  //   assert.strictEqual(
-  //     "Invalid Signer Account Error",
-  //     err,
-  //     "Invalid error code returned for invalid signer account",
-  //   )
-  // });
+    try {
+      await program.methods
+        .withdraw(pct_completed)
+        .signers([userKeyPair])
+        .accounts({
+          signer: userKeyPair.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          tmmAccount: tmmAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
+
+    assert.strictEqual(
+      "InvalidPercent",
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for percentage out of bounds",
+    )
+  });
 
 
-  // it("Withdraw Fail: Invalid User Token Account", async () => {
-  //   try {
-  //     await program.methods
-  //       .withdraw(pct_completed)
-  //       .signers([user])
-  //       .accounts({
-  //         signer: user.publicKey,
-  //         stake: stakeKey,
-  //         stakeTokenAccount: stakeTokenKey,
-  //         userTokenAccount: randomAccount.publicKey,
-  //         tmmTokenAccount: tmmTokenAccount,
-  //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
-  //       })
-  //       .rpc({ commitment: "confirmed", skipPreflight: true });
-  //   } catch (error) {
-  //     err = error as anchor.AnchorError;
-  //   }
+  it("Withdraw Fail: Invalid Signer", async () => {
+    pct_completed = Math.random();
+    try {
+      await program.methods
+        .withdraw(pct_completed)
+        .signers([tmmKeyPair])
+        .accounts({
+          signer: userKeyPair.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          tmmAccount: tmmAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      // Doesn't return an error code, so check with custom error msg.
+      err = "Invalid Signer Error";
+    }
 
-  //   assert.strictEqual(
-  //     "AccountNotInitialized",
-  //     err?.error?.errorCode?.code,
-  //     "Invalid error code returned for invalid user token account",
-  //   )
-  // });
+    assert.strictEqual(
+      "Invalid Signer Error",
+      err,
+      "Invalid error code returned for invalid signer",
+    )
+  });
+
+
+  it("Withdraw Fail: Invalid Signer Account", async () => {
+    try {
+      let sig = await program.methods
+        .withdraw(pct_completed)
+        .signers([userKeyPair])
+        .accounts({
+          signer: tmmKeyPair.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount,
+          tmmAccount: tmmAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      // Doesn't return an error code, so check with custom error msg.
+      err = "Invalid Signer Account Error";
+    }
+
+    assert.strictEqual(
+      "Invalid Signer Account Error",
+      err,
+      "Invalid error code returned for invalid signer account",
+    )
+  });
+
+
+  it("Withdraw Fail: Invalid User Token Account", async () => {
+    try {
+      await program.methods
+        .withdraw(pct_completed)
+        .signers([userKeyPair])
+        .accounts({
+          signer: userKeyPair.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: tmmAccount,
+          tmmAccount: tmmAccount,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .rpc({ commitment: "confirmed", skipPreflight: true });
+    } catch (error) {
+      err = error as anchor.AnchorError;
+    }
+
+    assert.strictEqual(
+      "ConstraintTokenOwner",
+      err?.error?.errorCode?.code,
+      "Invalid error code returned for invalid user token account",
+    )
+  });
 
 
   // it("Withdraw Fail: Invalid TMM Token Account", async () => {
   //   try {
   //     let sig = await program.methods
   //       .withdraw(pct_completed)
-  //       .signers([user])
+  //       .signers([userKeyPair])
   //       .accounts({
-  //         signer: user.publicKey,
+  //         signer: userKeyPair.publicKey,
   //         stake: stakeKey,
   //         stakeTokenAccount: stakeTokenKey,
   //         userTokenAccount: userTokenAccount,
-  //         tmmTokenAccount: randomTokenAccount,
+  //         tmmAccount: randomTokenAccount,
   //         tokenProgram: splToken.TOKEN_PROGRAM_ID,
   //       })
   //       .rpc({ commitment: "confirmed", skipPreflight: true });
@@ -464,13 +434,13 @@ describe("TMM-Staking", () => {
 
     await program.methods
       .withdraw(pct_completed)
-      .signers([user])
+      .signers([userKeyPair])
       .accounts({
-        signer: user.publicKey,
+        signer: userKeyPair.publicKey,
         stake: stakeKey,
         stakeTokenAccount: stakeTokenKey,
         userTokenAccount: userTokenAccount,
-        vaultAccount: vaultAccount.publicKey,
+        tmmAccount: tmmAccount,
         tokenProgram: splToken.TOKEN_PROGRAM_ID,
       })
       .rpc({ commitment: "confirmed", skipPreflight: true });

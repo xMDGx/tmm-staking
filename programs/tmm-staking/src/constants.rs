@@ -3,22 +3,22 @@ use solana_program::{
   pubkey::Pubkey,
 };
 
-pub const VAULT_SEED: &[u8] = b"VAULT_SEED";
 pub const STAKE_SEED: &[u8] = b"STAKE_SEED";
 pub const STAKE_TOKEN_SEED: &[u8] = b"STAKE_TOKEN_SEED";
 
 // Calculate the lock period for staking depending on runtime feature.
 // Lock period data type should match clock.unix_timestamp data type.
 pub const STAKE_LOCK_PERIOD: i64 = get_lock_period();
+
 #[cfg(feature = "t1")]
 const fn get_lock_period() -> i64 {return 10;} // 10 seconds
 #[cfg(not(feature = "t1"))]
 const fn get_lock_period() -> i64 {return 60 * 60 * 24 * 30;} // 30 days
 
-
-// Get the TMM vault account key depending on runtime feature.
+// Get the TMM account key depending on runtime feature.
 // Testing pubkey must match secret key in test ts file.
-pub const VAULT_KEY: Pubkey = get_tmm_key();
+pub const TMM_KEY: Pubkey = get_tmm_key();
+
 #[cfg(feature = "t1")]
 const fn get_tmm_key() -> Pubkey {return pubkey!("AuxpSQP7A9MoXVcNqddyzy8S2XA7iNetPnAMBdM8vdEr");}
 #[cfg(not(feature = "t1"))]
