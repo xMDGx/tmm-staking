@@ -22,7 +22,7 @@ pub fn deposit_funds(ctx: Context<DepositStake>, habit_id: u64, amount: u64) -> 
     stake.bump = ctx.bumps.stake;
     stake.stake_token_bump = ctx.bumps.stake_token_account;
 
-    // Transfer funds from user's wallet to the stake token account.
+    // Transfer funds from user's address to the stake token account.
     transfer(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),

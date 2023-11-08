@@ -16,7 +16,7 @@ describe("TMM-Staking", () => {
   const userKeyPair = Keypair.generate();
   const tokenKeyPair = Keypair.generate();
 
-  // Use same key for tmm key and account to validate the address.
+  // Reuse same keyPair for testing address constraint validation.
   const tmmKeyPair = Keypair.fromSecretKey(new Uint8Array([
     200, 109, 166, 2, 173, 23, 247, 101, 164, 231,
     26, 52, 240, 153, 99, 126, 129, 198, 104, 112,
@@ -43,6 +43,7 @@ describe("TMM-Staking", () => {
 
   let err = null;
 
+
   it("Setup Mint and Token Accounts", async () => {
     console.log("   ...starting airdrops");
     await airdrop(provider.connection, userKeyPair.publicKey);
@@ -55,7 +56,7 @@ describe("TMM-Staking", () => {
       tokenKeyPair,
       tokenKeyPair.publicKey,
       null,
-      9
+      9,
     );
 
     console.log("   ...creating user token account");
@@ -101,7 +102,7 @@ describe("TMM-Staking", () => {
   );
 
 
-  it("Withdraw Fail: Not initialized", async () => {
+  it("Withdraw Fail: Deposit Not initialized", async () => {
     try {
       await program.methods
         .withdraw(pct_completed)
@@ -112,7 +113,6 @@ describe("TMM-Staking", () => {
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount,
           tmmAccount: tmmAccount,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
@@ -128,11 +128,9 @@ describe("TMM-Staking", () => {
 
 
   it("Deposit Fail: Stake Amount is Zero", async () => {
-    stakeAmount = new anchor.BN(0);
-
     try {
       await program.methods
-        .deposit(habitId, stakeAmount)
+        .deposit(habitId, new anchor.BN(0))
         .signers([userKeyPair])
         .accounts({
           signer: userKeyPair.publicKey,
@@ -140,8 +138,6 @@ describe("TMM-Staking", () => {
           stake: stakeKey,
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
@@ -157,12 +153,9 @@ describe("TMM-Staking", () => {
 
 
   it("Deposit Fail: HabitID is Zero", async () => {
-    habitId = new anchor.BN(0);
-    stakeAmount = new anchor.BN(1);
-
     try {
       await program.methods
-        .deposit(habitId, stakeAmount)
+        .deposit(new anchor.BN(0), stakeAmount)
         .signers([userKeyPair])
         .accounts({
           signer: userKeyPair.publicKey,
@@ -170,15 +163,13 @@ describe("TMM-Staking", () => {
           stake: stakeKey,
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
       err = error as anchor.AnchorError;
     }
 
-    // While there is a constraint for habitID > 0, the error code returned is
+    // While there is a constraint msg for habitID == 0, the error code returned is
     // because the habitID is used for the account seeds.
     assert.strictEqual(
       "ConstraintSeeds",
@@ -189,9 +180,6 @@ describe("TMM-Staking", () => {
 
 
   it("Deposit Success", async () => {
-    habitId = new anchor.BN(123456789);
-    stakeAmount = new anchor.BN(2);
-
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
 
     await program.methods
@@ -203,8 +191,6 @@ describe("TMM-Staking", () => {
         stake: stakeKey,
         stakeTokenAccount: stakeTokenKey,
         userTokenAccount: userTokenAccount,
-        systemProgram: anchor.web3.SystemProgram.programId,
-        tokenProgram: splToken.TOKEN_PROGRAM_ID,
       })
       .rpc({ commitment: "confirmed", skipPreflight: true });
 
@@ -245,8 +231,6 @@ describe("TMM-Staking", () => {
           stake: stakeKey,
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
@@ -257,6 +241,7 @@ describe("TMM-Staking", () => {
   });
 
 
+  // Run anchor tests using --features t1 so correct locked time is used.
   it("Withdraw Fail: Staking locked", async () => {
     try {
       await program.methods
@@ -268,7 +253,6 @@ describe("TMM-Staking", () => {
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount,
           tmmAccount: tmmAccount,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
@@ -287,11 +271,9 @@ describe("TMM-Staking", () => {
 
 
   it("Withdraw Fail: Percentage out of bounds", async () => {
-    pct_completed = 1.1;
-
     try {
       await program.methods
-        .withdraw(pct_completed)
+        .withdraw(1.5)
         .signers([userKeyPair])
         .accounts({
           signer: userKeyPair.publicKey,
@@ -299,7 +281,6 @@ describe("TMM-Staking", () => {
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount,
           tmmAccount: tmmAccount,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
@@ -315,7 +296,6 @@ describe("TMM-Staking", () => {
 
 
   it("Withdraw Fail: Invalid Signer", async () => {
-    pct_completed = Math.random();
     try {
       await program.methods
         .withdraw(pct_completed)
@@ -326,7 +306,6 @@ describe("TMM-Staking", () => {
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount,
           tmmAccount: tmmAccount,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
@@ -353,7 +332,6 @@ describe("TMM-Staking", () => {
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount,
           tmmAccount: tmmAccount,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
@@ -380,7 +358,6 @@ describe("TMM-Staking", () => {
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: tmmAccount,
           tmmAccount: tmmAccount,
-          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .rpc({ commitment: "confirmed", skipPreflight: true });
     } catch (error) {
@@ -431,6 +408,7 @@ describe("TMM-Staking", () => {
 
   it("Withdraw Success", async () => {
     const userBefore = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
+    const tmmBefore = await splToken.getAccount(provider.connection, tmmAccount, "confirmed");
 
     await program.methods
       .withdraw(pct_completed)
@@ -441,16 +419,31 @@ describe("TMM-Staking", () => {
         stakeTokenAccount: stakeTokenKey,
         userTokenAccount: userTokenAccount,
         tmmAccount: tmmAccount,
-        tokenProgram: splToken.TOKEN_PROGRAM_ID,
       })
       .rpc({ commitment: "confirmed", skipPreflight: true });
 
     const userAfter = await splToken.getAccount(provider.connection, userTokenAccount, "confirmed");
+    const tmmAfter = await splToken.getAccount(provider.connection, tmmAccount, "confirmed");
 
-    console.log("User Before: " + userBefore.amount.toString());
-    console.log("User After: " + userAfter.amount.toString());
+    const earnedAmount = Math.floor(pct_completed * stakeAmount.toNumber());
+    const lostAmount = stakeAmount.toNumber() - earnedAmount;
 
-    // assert.strictEqual(userBalanceAfter.toString(), new BN(userBalanceBefore.toString()).add(withdrawAmount).toString());
+    // Dealing with rounded integers and SPL token balances, so don't need to worry
+    // about account for return of Rent.
+    assert.strictEqual(
+      Number(userAfter.amount),
+      Number(userBefore.amount) + earnedAmount,
+      "userAfter balance of " + userAfter.amount.toString() +
+      " != than userBefore balance of " + userBefore.amount.toString() +
+      " plus earnedAmount of " + earnedAmount.toString()
+    );
+    assert.strictEqual(
+      Number(tmmAfter.amount),
+      Number(tmmBefore.amount) + lostAmount,
+      "tmmAfter balance of " + userAfter.amount.toString() +
+      " != than tmmBefore balance of " + userBefore.amount.toString() +
+      " plus lostAmount of " + lostAmount.toString()
+    );
   });
 });
 
@@ -478,7 +471,7 @@ async function airdrop(connection: Connection, address: PublicKey) {
 };
 
 
-// Custom error handler for Solana logs.
+// Custom error handler for parsing Solana logs.
 function parseSolanaError(logs: any, error: string): boolean {
   const match = logs?.filter(s => s.includes(error));
   return Boolean(match?.length);

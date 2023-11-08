@@ -30,7 +30,7 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f64) -> Result<
     let earned_amount: u64 = (stake.total_stake as f64 * pct_complete).floor() as u64;
     let lost_amount: u64 = stake.total_stake - earned_amount;
 
-    // Withdraw earned funds back to the user's wallet.
+    // Withdraw earned funds back to the user's address.
     transfer(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -49,7 +49,7 @@ pub fn withdraw_funds(ctx: Context<WithdrawStake>, pct_complete: f64) -> Result<
         earned_amount,
     )?;
 
-    // Withdraw remaining funds (lost) to TrickMyMind wallet.
+    // Withdraw remaining funds (lost) to TrickMyMind address.
     transfer(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -132,8 +132,8 @@ pub struct WithdrawStake<'info> {
     #[account(
         mut,
         // constraint = tmm_account.key() == TMM_KEY.key(),
-        // associated_token::mint = stake.mint,
-        // associated_token::authority = tmm_account,
+        associated_token::mint = stake.mint,
+        associated_token::authority = tmm_account.owner,
     )]
     pub tmm_account: Account<'info, TokenAccount>,
 
