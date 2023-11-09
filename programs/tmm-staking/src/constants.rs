@@ -15,6 +15,7 @@ const fn get_lock_period() -> i64 {return 10;} // 10 seconds
 #[cfg(not(feature = "t1"))]
 const fn get_lock_period() -> i64 {return 60 * 60 * 24 * 30;} // 30 days
 
+
 // Get the TMM account key depending on runtime feature.
 // Testing pubkey must match secret key in test ts file.
 pub const TMM_KEY: Pubkey = get_tmm_key();
@@ -23,3 +24,16 @@ pub const TMM_KEY: Pubkey = get_tmm_key();
 const fn get_tmm_key() -> Pubkey {return pubkey!("AuxpSQP7A9MoXVcNqddyzy8S2XA7iNetPnAMBdM8vdEr");}
 #[cfg(not(feature = "t1"))]
 const fn get_tmm_key() -> Pubkey {return pubkey!("DhoMkFE2gGqWVoJhVcgA25zEJxqNC9BZkn3pzF4Pd9ww");}
+
+
+// Get the USDC key depending on runtime feature.
+// Mainnet / Devnet / Local.
+pub const USDC_KEY: Pubkey = get_usdc_key();
+
+#[cfg(feature = "t1")]
+const fn get_usdc_key() -> Pubkey {return pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");}
+#[cfg(not(feature = "t1"))]
+// Devnet
+// const fn get_usdc_key() -> Pubkey {return pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");}
+//Mainnet
+const fn get_usdc_key() -> Pubkey {return pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");}

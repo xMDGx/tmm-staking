@@ -14,9 +14,18 @@ describe("TMM-Staking", () => {
   const program = anchor.workspace.TmmStaking as Program<TmmStaking>;
 
   const userKeyPair = Keypair.generate();
-  const tokenKeyPair = Keypair.generate();
 
-  // Reuse same keyPair for testing address constraint validation.
+  // Reuse same keyPairs for testing address constraint validations.
+  // tokenKeyPair will be USDC in production and tmmKeyPair will be
+  // the TMM deposit/vault address.
+  const tokenKeyPair = Keypair.fromSecretKey(new Uint8Array([
+    170, 109, 209, 181, 95, 60, 175, 150, 129, 158, 40,
+    8, 97, 34, 124, 143, 69, 204, 76, 152, 18, 100,
+    237, 114, 95, 56, 110, 248, 81, 37, 121, 118, 14,
+    60, 248, 84, 122, 12, 164, 63, 63, 52, 29, 218,
+    54, 186, 99, 106, 226, 38, 42, 209, 85, 251, 169,
+    60, 160, 94, 216, 168, 34, 101, 108, 63
+  ]));
   const tmmKeyPair = Keypair.fromSecretKey(new Uint8Array([
     200, 109, 166, 2, 173, 23, 247, 101, 164, 231,
     26, 52, 240, 153, 99, 126, 129, 198, 104, 112,
