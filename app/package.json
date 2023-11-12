@@ -15,8 +15,13 @@
     "@solana/wallet-adapter-react-ui": "^0.9.34",
     "@solana/wallet-adapter-wallets": "^0.19.23",
     "@solana/web3.js": "^1.87.6",
+    "bigint-buffer": "^1.1.5",
+    "encoding": "^0.1.13",
+    "lokijs": "1.x",
     "next": "14.0.2",
-    "react": "^18",
+    "pino": "^8.16.1",
+    "pino-pretty": "^10.2.3",
+    "react": "^18.2.0",
     "react-dom": "^18"
   },
   "devDependencies": {
