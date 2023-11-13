@@ -2,13 +2,14 @@
 
 import { NextPage } from "next"
 import { useCallback, useState } from "react"
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { Wallet } from "@/components/Wallet";
 
 import { Program, AnchorProvider, web3, utils, BN } from "@coral-xyz/anchor";
 import idl from "../../tmm_staking.json";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Signer } from "@solana/web3.js";
 import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 const idl_string = JSON.stringify(idl);
 const idl_object = JSON.parse(idl_string);
@@ -20,17 +21,25 @@ const Home: NextPage = () => {
   var [withdrawalAmount, setWithdrawalAmount] = useState(0);
 
   const { connection } = useConnection();
-  const myWallet = useAnchorWallet();
+  const myWallet = useWallet();
+  const myAnchorWallet = useAnchorWallet();
 
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
 
+  const usdcMintKey = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
+
   const getProvider = () => {
-    if (!myWallet) { return; }
+    if (!myAnchorWallet) { return; }
 
     // Need to use AnchorProvider from @coral-xyz/anchor instead of anchor.AnchorProvider
     // for some reason, otherwise it bugs out with new Program down below.
-    const provider = new AnchorProvider(connection, myWallet, AnchorProvider.defaultOptions());
+    const provider = new AnchorProvider(connection, myAnchorWallet, AnchorProvider.defaultOptions());
+
+    // THIS DOES NOT WORK WITH myWallet.
+    // if (!myWallet?.wallet) { return; }
+    // const provider2 = new anchor.AnchorProvider(connection, myWallet, anchor.AnchorProvider.defaultOptions());
+
     return provider;
   }
 
@@ -38,7 +47,7 @@ const Home: NextPage = () => {
     try {
       const provider = getProvider();
 
-      if (!provider || !myWallet) { return; }
+      if (!provider || !myAnchorWallet || !myWallet) { return; }
 
       const program = new Program(idl_object, programID, provider);
 
@@ -51,17 +60,25 @@ const Home: NextPage = () => {
         program.programId
       );
 
+      const userTokenAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        provider.wallet.publicKey,
+        usdcMintKey,
+        myAnchorWallet.publicKey,
+        { commitment: "confirmed" }
+      );
+
       await program.methods
         .deposit(habitId, depositAmount)
-        // .signers([myWallet])
+        .signers([provider.wallet])
         .accounts({
-          signer: myWallet.publicKey,
-          tokenMint: tokenMint,
+          signer: provider.wallet.publicKey,
+          tokenMint: usdcMintKey,
           stake: stakeKey,
           stakeTokenAccount: stakeTokenKey,
-          userTokenAccount: userTokenAccount,
+          userTokenAccount: userTokenAccount.address,
         })
-        .rpc({ commitment: "confirmed", skipPreflight: true });
+        .rpc({ commitment: "confirmed" });
     } catch (error) {
       console.log(error);
     }
