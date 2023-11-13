@@ -1,0 +1,159 @@
+{
+  "version": "0.1.0",
+  "name": "tmm_staking",
+  "instructions": [
+    {
+      "name": "deposit",
+      "docs": [
+        "Deposits USDC funds into a stake based on the user's habit where habit_id is a",
+        "derived ID passed by the app backend."
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stakeTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "habitId",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "docs": [
+        "Withdraws USDC funds from the stake based on the percent (as a decimal) of the activities",
+        "completed for the habit."
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "stake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stakeTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tmmAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "pctComplete",
+          "type": "f64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Stake",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "depositTimestamp",
+            "type": "i64"
+          },
+          {
+            "name": "habitId",
+            "type": "u64"
+          },
+          {
+            "name": "totalStake",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "stakeTokenBump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "AmountMustBeGreaterThanZero",
+      "msg": "Amount must be greater than 0."
+    },
+    {
+      "code": 6001,
+      "name": "IsLocked",
+      "msg": "Staking has NOT unlocked yet."
+    },
+    {
+      "code": 6002,
+      "name": "InvalidPercent",
+      "msg": "Number must be between 0 and 1."
+    }
+  ],
+  "metadata": {
+    "address": "3sNN1ADbaJT5DMxi6EqkBSKV4qcKL7H2JJQneP7JnFPR"
+  }
+}

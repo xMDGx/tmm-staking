@@ -13,7 +13,10 @@ pub const STAKE_LOCK_PERIOD: i64 = get_lock_period();
 #[cfg(feature = "t1")]
 const fn get_lock_period() -> i64 {return 10;} // 10 seconds
 #[cfg(not(feature = "t1"))]
-const fn get_lock_period() -> i64 {return 60 * 60 * 24 * 30;} // 30 days
+// Devnet
+const fn get_lock_period() -> i64 {return 60;} // 1 minute
+// Mainnet
+// const fn get_lock_period() -> i64 {return 60 * 60 * 24 * 30;} // 30 days
 
 
 // Get the TMM account key depending on runtime feature.
