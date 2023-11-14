@@ -37,7 +37,7 @@ type SolanaWallet = WalletContextState & {
 const Home: NextPage = () => {
   var [habitId, setHabitId] = useState(new anchor.BN(0));
   var [depositAmount, setDepositAmount] = useState(new anchor.BN(0));
-  var [balance, setBalances] = useState(new anchor.BN(0));
+  var [balance, setBalances] = useState(0);
   var [withdrawalPercent, setWithdrawalPercent] = useState(0);
 
   const { connection } = useConnection();
@@ -77,7 +77,7 @@ const Home: NextPage = () => {
         program.programId
       );
 
-      const userTokenAccount = await getOrCreateATA(provider);
+      const userTokenAccount = await getOrCreateATA(provider, provider.wallet.publicKey);
 
       // const userTokenAccount = await getOrCreateAssociatedTokenAccount(
       //   connection,
@@ -131,16 +131,17 @@ const Home: NextPage = () => {
         program.programId
       );
 
-      const userTokenAccount = await getOrCreateATA(provider);
+      const userTokenAccount = await getOrCreateATA(provider, provider.wallet.publicKey);
+      const tmmTokenAccount = await getOrCreateATA(provider, tmmKey);
 
       await program.methods
-        .withdrawal(withdrawalPercent)
+        .withdraw(withdrawalPercent)
         .accounts({
           signer: provider.wallet.publicKey,
           stake: stakeKey,
           stakeTokenAccount: stakeTokenKey,
           userTokenAccount: userTokenAccount.address,
-          tmmAccount: tmmKey,
+          tmmAccount: tmmTokenAccount.address,
         })
         .rpc({ commitment: "confirmed" });
 
@@ -154,42 +155,36 @@ const Home: NextPage = () => {
 
 
   const getDepositBalance = async () => {
+    setBalances(0);
     console.log("Getting deposit balance...")
+
     const provider = getProvider();
 
-    const associatedToken = getAssociatedTokenAddressSync(
-      usdcMintKey,
-      provider.wallet.publicKey,
-      false,
-      TOKEN_PROGRAM_ID,
-      ASSOCIATED_TOKEN_PROGRAM_ID
+    const program = new anchor.Program(idl_object, programID, provider);
+
+    const [stakeKey] = PublicKey.findProgramAddressSync(
+      [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), provider.wallet.publicKey.toBuffer()],
+      program.programId
     );
 
-    let account: Account;
-    let balance = new anchor.BN(0);
-
-    console.log("Associated Token: " + JSON.stringify(associatedToken));
-
     try {
-      account = await getAccount(connection, associatedToken, "confirmed", TOKEN_PROGRAM_ID);
-      console.log("Account: " + JSON.stringify(account));
-      // balance = new anchor.BN(account.amount);
-    } catch (error) {
+      const stakeData = await program.account.stake.fetch(stakeKey);
+      setBalances(stakeData.totalStake);
+    } catch (err) {
       // Do nothing.
-      console.log("Get Balance Error: " + error);
     }
 
-    return balance;
+    return;
   };
 
 
   const getOrCreateATA = async (
     provider: anchor.AnchorProvider,
+    ownerKey: PublicKey,
   ) => {
-
     const associatedToken = getAssociatedTokenAddressSync(
       usdcMintKey,
-      provider.wallet.publicKey,
+      ownerKey,
       false,
       TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID
@@ -206,7 +201,7 @@ const Home: NextPage = () => {
             createAssociatedTokenAccountInstruction(
               provider.wallet.publicKey,
               associatedToken,
-              provider.wallet.publicKey,
+              ownerKey,
               usdcMintKey,
               TOKEN_PROGRAM_ID,
               ASSOCIATED_TOKEN_PROGRAM_ID
@@ -218,6 +213,9 @@ const Home: NextPage = () => {
             value: { blockhash: lastValidBlockHeight },
           } = await connection.getLatestBlockhashAndContext();
 
+          // Piggy backing off code that works, but doesn't make sense logically.  Using
+          // SolanaWallet method to send transaction, because regular method has been
+          // deprecated, and could not use Signer.
           const signature = await solanaWallet.sendTransaction(txn, connection, { minContextSlot });
           await connection.confirmTransaction(signature, "confirmed");
 
@@ -236,6 +234,7 @@ const Home: NextPage = () => {
 
     return account;
   };
+
 
   return (
     <div>
