@@ -41,7 +41,7 @@ const Home: NextPage = () => {
   const { connection } = useConnection();
   const solanaWallet = useWallet() as SolanaWallet;
   // const myWallet = useWallet();
-  // const myAnchorWallet = useAnchorWallet();
+  const myAnchorWallet = useAnchorWallet();
 
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
@@ -52,7 +52,11 @@ const Home: NextPage = () => {
     // if (!myAnchorWallet) throw new Error("Wallet not connected");
     // const provider = new anchor.AnchorProvider(connection, myAnchorWallet, anchor.AnchorProvider.defaultOptions());
     // const provider = new anchor.AnchorProvider(connection, myWallet, anchor.AnchorProvider.defaultOptions());
+
+    console.log("Solana Wallet PKey: " + solanaWallet?.publicKey);
+
     const provider = new anchor.AnchorProvider(connection, solanaWallet, anchor.AnchorProvider.defaultOptions());
+    console.log("Provider: " + provider);
     return provider;
   }
 
@@ -73,7 +77,7 @@ const Home: NextPage = () => {
       );
 
       const userTokenAccount = await getOrCreateATA(provider);
-
+      console.log("User Token Account: " + userTokenAccount);
       // const userTokenAccount = await getOrCreateAssociatedTokenAccount(
       //   connection,
       //   provider.wallet,
