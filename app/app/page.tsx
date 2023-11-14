@@ -20,6 +20,7 @@ import {
 } from "@solana/spl-token";
 
 import idl from "../../tmm_staking.json";
+import { WalletDisconnectButton, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
 const idl_string = JSON.stringify(idl);
 const idl_object = JSON.parse(idl_string);
@@ -36,32 +37,32 @@ type SolanaWallet = WalletContextState & {
 const Home: NextPage = () => {
   var [habitId, setHabitId] = useState(new anchor.BN(0));
   var [depositAmount, setDepositAmount] = useState(new anchor.BN(0));
-  var [withdrawalAmount, setWithdrawalAmount] = useState(0);
+  var [balance, setBalances] = useState(new anchor.BN(0));
+  var [withdrawalPercent, setWithdrawalPercent] = useState(0);
 
   const { connection } = useConnection();
   const solanaWallet = useWallet() as SolanaWallet;
   // const myWallet = useWallet();
-  const myAnchorWallet = useAnchorWallet();
+  // const myAnchorWallet = useAnchorWallet();
 
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
 
   const usdcMintKey = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
+  const tmmKey = new PublicKey("DhoMkFE2gGqWVoJhVcgA25zEJxqNC9BZkn3pzF4Pd9ww");
 
   const getProvider = () => {
     // if (!myAnchorWallet) throw new Error("Wallet not connected");
     // const provider = new anchor.AnchorProvider(connection, myAnchorWallet, anchor.AnchorProvider.defaultOptions());
     // const provider = new anchor.AnchorProvider(connection, myWallet, anchor.AnchorProvider.defaultOptions());
 
-    console.log("Solana Wallet PKey: " + solanaWallet?.publicKey);
-
     const provider = new anchor.AnchorProvider(connection, solanaWallet, anchor.AnchorProvider.defaultOptions());
-    console.log("Provider: " + provider);
     return provider;
   }
 
   const submitDeposit = async () => {
     console.log("Submitting deposit...");
+
     try {
       const provider = getProvider();
 
@@ -77,7 +78,7 @@ const Home: NextPage = () => {
       );
 
       const userTokenAccount = await getOrCreateATA(provider);
-      console.log("User Token Account: " + userTokenAccount);
+
       // const userTokenAccount = await getOrCreateAssociatedTokenAccount(
       //   connection,
       //   provider.wallet,
@@ -85,9 +86,15 @@ const Home: NextPage = () => {
       //   solanaWallet.publicKey,
       //   { commitment: "confirmed" }
       // );
+      // console.log("User Token Account: " + userTokenAccount);
+
+      let mint = await connection.getParsedAccountInfo(usdcMintKey);
+
+      let depositTxnAmount = depositAmount.mul(new anchor.BN(10).pow(new anchor.BN(mint.value?.data?.parsed?.info?.decimals)));
+      setDepositAmount(depositTxnAmount);
 
       await program.methods
-        .deposit(habitId, depositAmount)
+        .deposit(habitId, depositTxnAmount)
         .accounts({
           signer: provider.wallet.publicKey,
           tokenMint: usdcMintKey,
@@ -97,22 +104,84 @@ const Home: NextPage = () => {
         })
         .rpc({ commitment: "confirmed" });
 
-      console.log("Deposit successful: " + depositAmount);
+      console.log("Deposit successful: " + depositTxnAmount);
     } catch (error) {
+      console.log("Deposit failed: " + depositAmount);
       console.log(error);
     }
 
     return;
   };
 
-  const submitWithdrawal = async () => {
-    try {
 
+  const submitWithdrawal = async () => {
+    console.log("Submitting withdrawal...");
+
+    try {
+      const provider = getProvider();
+
+      const program = new anchor.Program(idl_object, programID, provider);
+
+      const [stakeKey] = PublicKey.findProgramAddressSync(
+        [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), provider.wallet.publicKey.toBuffer()],
+        program.programId
+      );
+      const [stakeTokenKey] = PublicKey.findProgramAddressSync(
+        [stakeTokenSeed, stakeKey.toBuffer()],
+        program.programId
+      );
+
+      const userTokenAccount = await getOrCreateATA(provider);
+
+      await program.methods
+        .withdrawal(withdrawalPercent)
+        .accounts({
+          signer: provider.wallet.publicKey,
+          stake: stakeKey,
+          stakeTokenAccount: stakeTokenKey,
+          userTokenAccount: userTokenAccount.address,
+          tmmAccount: tmmKey,
+        })
+        .rpc({ commitment: "confirmed" });
+
+      console.log("Withdrawal successful: " + withdrawalPercent);
     } catch (err) {
+      console.log("Withdrawal failed: " + withdrawalPercent);
       console.log(err);
     }
     return;
   };
+
+
+  const getDepositBalance = async () => {
+    console.log("Getting deposit balance...")
+    const provider = getProvider();
+
+    const associatedToken = getAssociatedTokenAddressSync(
+      usdcMintKey,
+      provider.wallet.publicKey,
+      false,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    let account: Account;
+    let balance = new anchor.BN(0);
+
+    console.log("Associated Token: " + JSON.stringify(associatedToken));
+
+    try {
+      account = await getAccount(connection, associatedToken, "confirmed", TOKEN_PROGRAM_ID);
+      console.log("Account: " + JSON.stringify(account));
+      // balance = new anchor.BN(account.amount);
+    } catch (error) {
+      // Do nothing.
+      console.log("Get Balance Error: " + error);
+    }
+
+    return balance;
+  };
+
 
   const getOrCreateATA = async (
     provider: anchor.AnchorProvider,
@@ -152,23 +221,6 @@ const Home: NextPage = () => {
           const signature = await solanaWallet.sendTransaction(txn, connection, { minContextSlot });
           await connection.confirmTransaction(signature, "confirmed");
 
-          //BlockheightBasedTransactionConfirmationStrategy
-
-          // const strategy = {
-          //   abortSignal?: false,
-          //   signature: signature,
-          //   blockhash: blockhash,
-          //   lastValidBlockHeight: lastValidBlockHeight,
-          // } as new TransactionConfirmationStrategy;
-
-          // await connection.confirmTransaction(strategy, "confirmed");
-
-          // await sendAndConfirmTransaction(
-          //   connection,
-          //   txn,
-          //   [provider.wallet],
-          //   { commitment: "confirmed" }
-          // );
         } catch (error: unknown) {
           // Ignoring all errors.
         }
@@ -192,7 +244,8 @@ const Home: NextPage = () => {
       <h1>TrickMyMind Frontend UI Testing</h1>
       <br />
       <br />
-      <Wallet />
+      <WalletMultiButton />
+      <WalletDisconnectButton />
       <br />
       <br />
       {habitId.toString()}
@@ -227,14 +280,24 @@ const Home: NextPage = () => {
       <br />
       <br />
       <br />
+      {balance.toString()}
+      <br />
+      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onClick={getDepositBalance}>
+        Check Balance
+      </button>
+      <br />
+      <br />
+      <br />
+      {withdrawalPercent.toString()}
+      <br />
       <label>Percent Completed (decimal):</label>
       <input
         type="number"
-        id="withdrawal_amount"
-        name="withdrawal_amount"
+        id="withdrawal_percent"
+        name="withdrawal_percent"
         min="0"
         max="1"
-        onChange={(e) => setWithdrawalAmount(Number(e.target.value))}
+        onChange={(e) => setWithdrawalPercent(Number(e.target.value))}
       />
       <br />
       <button className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onClick={submitWithdrawal}>
