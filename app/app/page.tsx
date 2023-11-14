@@ -1,28 +1,47 @@
 'use client';
 
 import { NextPage } from "next"
-import { useCallback, useState } from "react"
+import { useState } from "react"
 import * as anchor from "@coral-xyz/anchor";
 import { Wallet } from "@/components/Wallet";
 
-import { Program, AnchorProvider, web3, utils, BN } from "@coral-xyz/anchor";
+import { PublicKey, SendTransactionError, Signer, Transaction, sendAndConfirmTransaction, TransactionConfirmationStrategy } from "@solana/web3.js";
+import { WalletContextState, useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
+
+import {
+  getAccount,
+  createAssociatedTokenAccountInstruction,
+  ASSOCIATED_TOKEN_PROGRAM_ID, Account,
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+  getOrCreateAssociatedTokenAccount,
+  TokenAccountNotFoundError,
+  TokenInvalidAccountOwnerError
+} from "@solana/spl-token";
+
 import idl from "../../tmm_staking.json";
-import { PublicKey, Signer } from "@solana/web3.js";
-import { useAnchorWallet, useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 const idl_string = JSON.stringify(idl);
 const idl_object = JSON.parse(idl_string);
 const programID = new PublicKey(idl.metadata.address);
 
+
+type SolanaWallet = WalletContextState & {
+  publicKey: PublicKey;
+  signTransaction(tx: Transaction): Promise<Transaction>;
+  signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
+};
+
+
 const Home: NextPage = () => {
-  var [habitId, setHabitId] = useState(new BN(0));
-  var [depositAmount, setDepositAmount] = useState(new BN(0));
+  var [habitId, setHabitId] = useState(new anchor.BN(0));
+  var [depositAmount, setDepositAmount] = useState(new anchor.BN(0));
   var [withdrawalAmount, setWithdrawalAmount] = useState(0);
 
   const { connection } = useConnection();
-  const myWallet = useWallet();
-  const myAnchorWallet = useAnchorWallet();
+  const solanaWallet = useWallet() as SolanaWallet;
+  // const myWallet = useWallet();
+  // const myAnchorWallet = useAnchorWallet();
 
   const stakeSeed = anchor.utils.bytes.utf8.encode("STAKE_SEED");
   const stakeTokenSeed = anchor.utils.bytes.utf8.encode("STAKE_TOKEN_SEED");
@@ -30,26 +49,19 @@ const Home: NextPage = () => {
   const usdcMintKey = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
 
   const getProvider = () => {
-    if (!myAnchorWallet) { return; }
-
-    // Need to use AnchorProvider from @coral-xyz/anchor instead of anchor.AnchorProvider
-    // for some reason, otherwise it bugs out with new Program down below.
-    const provider = new AnchorProvider(connection, myAnchorWallet, AnchorProvider.defaultOptions());
-
-    // THIS DOES NOT WORK WITH myWallet.
-    // if (!myWallet?.wallet) { return; }
-    // const provider2 = new anchor.AnchorProvider(connection, myWallet, anchor.AnchorProvider.defaultOptions());
-
+    // if (!myAnchorWallet) throw new Error("Wallet not connected");
+    // const provider = new anchor.AnchorProvider(connection, myAnchorWallet, anchor.AnchorProvider.defaultOptions());
+    // const provider = new anchor.AnchorProvider(connection, myWallet, anchor.AnchorProvider.defaultOptions());
+    const provider = new anchor.AnchorProvider(connection, solanaWallet, anchor.AnchorProvider.defaultOptions());
     return provider;
   }
 
   const submitDeposit = async () => {
+    console.log("Submitting deposit...");
     try {
       const provider = getProvider();
 
-      if (!provider || !myAnchorWallet || !myWallet) { return; }
-
-      const program = new Program(idl_object, programID, provider);
+      const program = new anchor.Program(idl_object, programID, provider);
 
       const [stakeKey] = PublicKey.findProgramAddressSync(
         [stakeSeed, habitId.toArrayLike(Buffer, "le", 8), provider.wallet.publicKey.toBuffer()],
@@ -60,17 +72,18 @@ const Home: NextPage = () => {
         program.programId
       );
 
-      const userTokenAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        provider.wallet.publicKey,
-        usdcMintKey,
-        myAnchorWallet.publicKey,
-        { commitment: "confirmed" }
-      );
+      const userTokenAccount = await getOrCreateATA(provider);
+
+      // const userTokenAccount = await getOrCreateAssociatedTokenAccount(
+      //   connection,
+      //   provider.wallet,
+      //   usdcMintKey,
+      //   solanaWallet.publicKey,
+      //   { commitment: "confirmed" }
+      // );
 
       await program.methods
         .deposit(habitId, depositAmount)
-        .signers([provider.wallet])
         .accounts({
           signer: provider.wallet.publicKey,
           tokenMint: usdcMintKey,
@@ -79,9 +92,12 @@ const Home: NextPage = () => {
           userTokenAccount: userTokenAccount.address,
         })
         .rpc({ commitment: "confirmed" });
+
+      console.log("Deposit successful: " + depositAmount);
     } catch (error) {
       console.log(error);
     }
+
     return;
   };
 
@@ -94,6 +110,77 @@ const Home: NextPage = () => {
     return;
   };
 
+  const getOrCreateATA = async (
+    provider: anchor.AnchorProvider,
+  ) => {
+
+    const associatedToken = getAssociatedTokenAddressSync(
+      usdcMintKey,
+      provider.wallet.publicKey,
+      false,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    let account: Account;
+
+    try {
+      account = await getAccount(connection, associatedToken, "confirmed", TOKEN_PROGRAM_ID);
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError || error instanceof TokenInvalidAccountOwnerError) {
+        try {
+          const txn = new Transaction().add(
+            createAssociatedTokenAccountInstruction(
+              provider.wallet.publicKey,
+              associatedToken,
+              provider.wallet.publicKey,
+              usdcMintKey,
+              TOKEN_PROGRAM_ID,
+              ASSOCIATED_TOKEN_PROGRAM_ID
+            )
+          )
+
+          const {
+            context: { slot: minContextSlot },
+            value: { blockhash: lastValidBlockHeight },
+          } = await connection.getLatestBlockhashAndContext();
+
+          const signature = await solanaWallet.sendTransaction(txn, connection, { minContextSlot });
+          await connection.confirmTransaction(signature, "confirmed");
+
+          //BlockheightBasedTransactionConfirmationStrategy
+
+          // const strategy = {
+          //   abortSignal?: false,
+          //   signature: signature,
+          //   blockhash: blockhash,
+          //   lastValidBlockHeight: lastValidBlockHeight,
+          // } as new TransactionConfirmationStrategy;
+
+          // await connection.confirmTransaction(strategy, "confirmed");
+
+          // await sendAndConfirmTransaction(
+          //   connection,
+          //   txn,
+          //   [provider.wallet],
+          //   { commitment: "confirmed" }
+          // );
+        } catch (error: unknown) {
+          // Ignoring all errors.
+        }
+
+        account = await getAccount(connection, associatedToken, "confirmed", TOKEN_PROGRAM_ID);
+      } else {
+        throw error;
+      }
+    }
+
+    // if (!account.mint.equals(usdcMintKey)) throw new TokenInvalidMintError();
+    // if (!account.owner.equals(provider.wallet.publicKey)) throw new TokenInvalidOwnerError();
+
+    return account;
+  };
+
   return (
     <div>
       <br />
@@ -104,12 +191,16 @@ const Home: NextPage = () => {
       <Wallet />
       <br />
       <br />
+      {habitId.toString()}
+      <br />
+      {depositAmount.toString()}
+      <br />
       <label>Habit ID:</label>
       <input
         type="number"
         id="habit_id"
         name="habit_id"
-        onChange={(e) => setHabitId(new BN(parseInt(e.target.value)))}
+        onChange={(e) => setHabitId(new anchor.BN(parseInt(e.target.value)))}
       />
       <br />
       <label>Deposit Amount (USDC):</label>
@@ -117,10 +208,10 @@ const Home: NextPage = () => {
         type="number"
         id="deposit_amount"
         name="deposit_amount"
-        onChange={(e) => setDepositAmount(new BN(parseInt(e.target.value)))}
+        onChange={(e) => setDepositAmount(new anchor.BN(parseInt(e.target.value)))}
       />
       <br />
-      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onClick={() => { submitDeposit }}>
+      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onClick={submitDeposit}>
         Deposit
       </button>
       <br />
@@ -142,7 +233,7 @@ const Home: NextPage = () => {
         onChange={(e) => setWithdrawalAmount(Number(e.target.value))}
       />
       <br />
-      <button className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onClick={() => { submitWithdrawal }}>
+      <button className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onClick={submitWithdrawal}>
         Withdraw
       </button>
     </div>
