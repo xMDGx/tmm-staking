@@ -9,7 +9,7 @@ tmm_staking = "2oXApx9k2sPsCdDbQRhbxwzQxm4nrVz3SXK1CorL1FhL"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "Localnet"
 wallet = "./id.json"
 
 [scripts]
