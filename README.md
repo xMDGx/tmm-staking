@@ -27,15 +27,15 @@ For any environmental debugging, this project was built using WSL: Ubuntu enviro
 2) In terminal type 'cd app'
 3) In terminal type 'yarn dev'
 4) Click open browser which should open the localhost browser and show a bare rather crude looking frontend.
-  a. Connect Phantom wallet.  (Only Phantom works because I ran into an insane amount of debugging issues.)
-  b. Input Habit ID (any integer).  This will be handled by the app, but is manual for testing.  REMEMBER your Habit ID.
-  c. Input Deposit Amount USDC (any integer).  This will be validated in Anchor Accounts eventually, but for now the validation is in nextJs files.
-  d. Click Deposit button which should trigger a Phantom transaction to deposit the USDC amount.
-  e. After depositing funds, they will be locked for 1 minute as opposed to 30 days.  You can check your balance by clicking Check Balance Button
-  f. Input a Percent Completed (decimal between 0 and 1).  This will be calculated by the app, but is mnaual for testing.
-  g. Click Withdraw to receive your calculated funds.  Note that I have hardcoded in my devnet wallet for the TrickMyMind account wallet.  So any funds
-     lost will be sent there.  So if you deposit 1 dollar, and withdraw using a percent of 0.8, then 80 cents will be withdrawn to your wallet and
-     20 cents will be withdrawn to the TrickMyMind account wallet.
+5) Connect Phantom wallet.  (Only Phantom works because I ran into an insane amount of debugging issues.)
+6) Input Habit ID (any integer).  This will be handled by the app, but is manual for testing.  REMEMBER your Habit ID.
+7) Input Deposit Amount USDC (any integer).  This will be validated in Anchor Accounts eventually, but for now the validation is in nextJs files.
+8) Click Deposit button which should trigger a Phantom transaction to deposit the USDC amount.
+9) After depositing funds, they will be locked for 1 minute as opposed to 30 days.  You can check your balance by clicking Check Balance Button
+10) Input a Percent Completed (decimal between 0 and 1).  This will be calculated by the app, but is mnaual for testing.
+11) Click Withdraw to receive your calculated funds.  Note that I have hardcoded in my devnet wallet for the TrickMyMind account wallet.  So any funds
+    lost will be sent there.  So if you deposit 1 dollar, and withdraw using a percent of 0.8, then 80 cents will be withdrawn to your wallet and
+    20 cents will be withdrawn to the TrickMyMind account wallet.
 
 Note: there is one debug error you will get if you run 'yarn build' in that the compiler is not recognizing all of the ParsedAccount object.  The code
 all works as expected though.
