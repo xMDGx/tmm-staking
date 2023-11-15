@@ -31,9 +31,7 @@ For any environmental debugging, this project was built using WSL: Ubuntu enviro
   b. Input Habit ID (any integer).  This will be handled by the app, but is manual for testing.  REMEMBER your Habit ID.
   c. Input Deposit Amount USDC (any integer).  This will be validated in Anchor Accounts eventually, but for now the validation is in nextJs files.
   d. Click Deposit button which should trigger a Phantom transaction to deposit the USDC amount.
-
   e. After depositing funds, they will be locked for 1 minute as opposed to 30 days.  You can check your balance by clicking Check Balance Button
-
   f. Input a Percent Completed (decimal between 0 and 1).  This will be calculated by the app, but is mnaual for testing.
   g. Click Withdraw to receive your calculated funds.  Note that I have hardcoded in my devnet wallet for the TrickMyMind account wallet.  So any funds
      lost will be sent there.  So if you deposit 1 dollar, and withdraw using a percent of 0.8, then 80 cents will be withdrawn to your wallet and
